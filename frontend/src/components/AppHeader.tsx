@@ -148,9 +148,6 @@ export default function AppHeader({
                 <div className="leading-tight">
                   <div className="text-base font-bold text-white tracking-tight flex items-center gap-1.5">
                     Market<span className="text-emerald-400">Mind</span>
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hidden sm:inline-block">
-                      PRO
-                    </span>
                   </div>
                 </div>
               </Link>

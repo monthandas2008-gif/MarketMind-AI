@@ -1,18 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
   Activity, TrendingUp, Layers, ShieldCheck, 
-  FileText, Terminal, ChevronLeft, ChevronRight,
+  FileText, Terminal,
   PanelLeftClose, PanelLeftOpen, Key, Plus,
-  Search, ShieldAlert, CheckCircle2, Star, Sparkles
+  Search, ShieldAlert, Sparkles
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useTracking } from '@/lib/tracking';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 
 interface DashboardSidebarProps {
   collapsed: boolean;
@@ -87,9 +85,6 @@ export default function DashboardSidebar({
                 <div className="leading-tight truncate">
                   <div className="text-sm font-bold text-white tracking-tight flex items-center gap-1.5">
                     Market<span className="text-emerald-400">Mind</span>
-                    <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      PRO
-                    </span>
                   </div>
                   <span className="text-[10px] text-[#64748b] font-medium block">
                     Institutional Desk
