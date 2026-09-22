@@ -1,0 +1,103 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0b0f19;
+  --foreground: #f8fafc;
+
+  --card: #111827;
+  --card-foreground: #f8fafc;
+
+  --popover: #111827;
+  --popover-foreground: #f8fafc;
+
+  --primary: #10b981;
+  --primary-foreground: #0b0f19;
+
+  --secondary: #1e293b;
+  --secondary-foreground: #e2e8f0;
+
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+
+  --accent: #1e293b;
+  --accent-foreground: #f8fafc;
+
+  --destructive: #f43f5e;
+  --destructive-foreground: #ffffff;
+
+  --border: #1e293b;
+  --input: #1e293b;
+  --ring: #10b981;
+
+  --radius: 0.5rem;
+
+  /* Refined FinTech Surfaces */
+  --surface-0: #0b0f19;
+  --surface-1: #111827;
+  --surface-2: #162032;
+  --surface-3: #1e293b;
+  --surface-inset: #0d1322;
+  --border-subtle: #1e293b;
+  --border-prominent: #334155;
+}
+
+body {
+  color: var(--foreground);
+  background-color: var(--background);
+  font-family: var(--font-sans), 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Crisp FinTech Panels & Cards */
+.glass-panel {
+  background: #111827;
+  border: 1px solid #1e293b;
+}
+
+.glass-panel-elevated {
+  background: #162032;
+  border: 1px solid #293548;
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.4);
+}
+
+.glass-panel-hover {
+  transition: all 0.15s ease-in-out;
+}
+
+.glass-panel-hover:hover {
+  border-color: #3b4961;
+  background: #162032;
+}
+
+/* Tabular Financial Numbers */
+.num-tabular {
+  font-family: var(--font-mono), 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Clean FinTech Scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0b0f19;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Focus styles for keyboard accessibility */
+:focus-visible {
+  outline: 2px solid rgba(16, 185, 129, 0.8);
+  outline-offset: 2px;
+}
