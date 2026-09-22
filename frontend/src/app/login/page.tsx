@@ -5,13 +5,12 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   Lock, Mail, User, ArrowRight, ShieldCheck, CheckCircle2, 
-  Key, AlertCircle, Eye, EyeOff, ArrowLeft, RefreshCw, ShieldAlert
+  AlertCircle, Eye, EyeOff, ArrowLeft, RefreshCw, ShieldAlert, Clock
 } from 'lucide-react';
 import AppHeader from '@/components/AppHeader';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 
 function LoginFormContent() {
   const router = useRouter();
@@ -19,7 +18,7 @@ function LoginFormContent() {
   const redirectTarget = searchParams.get('redirect') || '/dashboard';
   const wasRedirected = Boolean(searchParams.get('redirect'));
 
-  const { login } = useAuth();
+  const { login, register } = useAuth();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -27,42 +26,71 @@ function LoginFormContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [pendingNotice, setPendingNotice] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  const handleFillDemo = () => {
-    setEmail('demo.analyst@marketmind.ai');
-    setPassword('MarketMind#2026');
-    setName('Senior Equity Analyst');
-    setError('');
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setPendingNotice('');
+    setSuccessMsg('');
     setLoading(true);
 
-    setTimeout(() => {
-      setLoading(false);
+    try {
       if (!email.includes('@')) {
-        setError('Please provide a valid institutional or personal email address.');
+        setError('Please provide a valid email address.');
+        setLoading(false);
         return;
       }
       if (password.length < 6) {
         setError('Security rule: Password must be at least 6 characters.');
+        setLoading(false);
         return;
       }
 
-      login(email, mode === 'register' ? (name || 'Registered Analyst') : undefined);
-      setSuccessMsg(
-        mode === 'login'
-          ? 'Authentication verified. Launching terminal...'
-          : 'Registration successful. Initializing analyst desk...'
-      );
-      
-      setTimeout(() => {
-        router.push(redirectTarget);
-      }, 700);
-    }, 500);
+      if (mode === 'login') {
+        const result = await login(email, password);
+        if (result.success) {
+          setSuccessMsg('Authentication verified. Launching terminal...');
+          setTimeout(() => {
+            router.push(redirectTarget);
+          }, 600);
+        } else if (result.status === 'pending') {
+          setPendingNotice(
+            result.message ||
+            'Your account is pending administrator approval by monthandas2008@gmail.com. Access will be unlocked once approved.'
+          );
+        } else {
+          setError(result.message || 'Invalid credentials or access rejected.');
+        }
+      } else {
+        if (!name.trim()) {
+          setError('Please provide your full name or organization.');
+          setLoading(false);
+          return;
+        }
+
+        const result = await register(email, password, name);
+        if (result.success && result.status === 'approved') {
+          setSuccessMsg('Administrator account verified. Launching terminal...');
+          setTimeout(() => {
+            router.push(redirectTarget);
+          }, 600);
+        } else if (result.status === 'pending') {
+          setPendingNotice(
+            result.message ||
+            'Registration submitted successfully! Your account is pending administrator approval by monthandas2008@gmail.com. You will be able to log in once approved.'
+          );
+          setMode('login');
+        } else {
+          setError(result.message || 'Registration failed. Please try again.');
+        }
+      }
+    } catch (err: any) {
+      setError(err?.message || 'A network error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -79,7 +107,7 @@ function LoginFormContent() {
       {wasRedirected && (
         <div className="p-3 rounded-lg bg-amber-950/40 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
           <ShieldAlert className="w-4 h-4 shrink-0 text-amber-400" />
-          <span>Access Restricted: Sign in or register to unlock live telemetry & deep dive tools.</span>
+          <span>Access Restricted: Sign in to access live terminal telemetry & analysis.</span>
         </div>
       )}
 
@@ -94,16 +122,16 @@ function LoginFormContent() {
           </h1>
           <p className="text-xs text-[#94a3b8] mt-1.5">
             {mode === 'login' 
-              ? 'Sign in to access real-time multi-agent intelligence and NSE market telemetry.'
-              : 'Register to unlock full single-stock deep dives, dynamic tracking, and custom reports.'}
+              ? 'Authorized access only. Sign in with your approved credentials.'
+              : 'New analyst accounts require administrator approval before terminal access.'}
           </p>
         </div>
 
         {/* Mode Switch Tabs */}
-        <div className="flex bg-[#0b0f19] p-1 rounded-lg border border-[#1e293b] mb-4 text-xs">
+        <div className="flex bg-[#0b0f19] p-1 rounded-lg border border-[#1e293b] mb-5 text-xs">
           <button
             type="button"
-            onClick={() => { setMode('login'); setError(''); }}
+            onClick={() => { setMode('login'); setError(''); setPendingNotice(''); }}
             className={`flex-1 py-1.5 rounded-md transition-all font-semibold ${
               mode === 'login'
                 ? 'bg-[#111827] text-white border border-[#1e293b] shadow-sm'
@@ -114,7 +142,7 @@ function LoginFormContent() {
           </button>
           <button
             type="button"
-            onClick={() => { setMode('register'); setError(''); }}
+            onClick={() => { setMode('register'); setError(''); setPendingNotice(''); }}
             className={`flex-1 py-1.5 rounded-md transition-all font-semibold ${
               mode === 'register'
                 ? 'bg-[#111827] text-white border border-[#1e293b] shadow-sm'
@@ -122,21 +150,6 @@ function LoginFormContent() {
             }`}
           >
             Register
-          </button>
-        </div>
-
-        {/* Demo Credentials Quick Fill */}
-        <div className="mb-4 bg-[#0b0f19] border border-[#1e293b] rounded-lg p-2.5 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2 text-[#cbd5e1]">
-            <Key className="w-3.5 h-3.5 text-amber-400" />
-            <span>Demo Analyst Credentials</span>
-          </div>
-          <button
-            type="button"
-            onClick={handleFillDemo}
-            className="px-2.5 py-1 rounded bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 font-semibold transition-all text-[11px]"
-          >
-            Auto-Fill
           </button>
         </div>
 
@@ -166,7 +179,7 @@ function LoginFormContent() {
               <Input
                 type="email"
                 required
-                placeholder="analyst@marketmind.ai"
+                placeholder="your.email@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="pl-9 bg-[#0b0f19] border-[#1e293b] text-white text-xs h-9 focus:border-emerald-500"
@@ -177,11 +190,6 @@ function LoginFormContent() {
           <div>
             <div className="flex justify-between items-center mb-1">
               <label className="text-[#94a3b8] font-medium">Password</label>
-              {mode === 'login' && (
-                <span className="text-[11px] text-[#64748b] hover:text-emerald-400 cursor-pointer">
-                  Forgot Password?
-                </span>
-              )}
             </div>
             <div className="relative">
               <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b]" />
@@ -202,6 +210,16 @@ function LoginFormContent() {
               </button>
             </div>
           </div>
+
+          {pendingNotice && (
+            <div className="p-3 rounded-lg bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs flex items-start gap-2.5">
+              <Clock className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+              <div className="leading-relaxed">
+                <span className="font-semibold block mb-0.5">Approval Required</span>
+                <span>{pendingNotice}</span>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="p-2.5 rounded-lg bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
@@ -228,7 +246,7 @@ function LoginFormContent() {
                 ? 'Verifying Credentials...'
                 : mode === 'login'
                 ? 'Enter Research Terminal'
-                : 'Initialize Account'}
+                : 'Request Account Access'}
             </span>
             <ArrowRight className="w-4 h-4" />
           </Button>
@@ -239,7 +257,7 @@ function LoginFormContent() {
           <span className="flex items-center gap-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Grounded Session Guard
           </span>
-          <span className="text-[11px] text-[#64748b]">Zero Telemetry Leak</span>
+          <span className="text-[11px] text-[#64748b]">Private & Encrypted</span>
         </div>
       </div>
     </div>

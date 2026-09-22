@@ -16,7 +16,7 @@ from app.db.client import db
 
 router = APIRouter(prefix="/api/user", tags=["User Tracking & Intelligence"])
 
-DEFAULT_USER_ID = "demo.analyst@marketmind.ai"
+DEFAULT_USER_ID = "monthandas2008@gmail.com"
 
 class GenerateReportRequest(BaseModel):
     user_id: Optional[str] = DEFAULT_USER_ID

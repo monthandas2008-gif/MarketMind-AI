@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation';
 import { 
   ArrowRight, ShieldCheck, Activity, Cpu,
   Lock, Mail, User, Sparkles, CheckCircle2, ChevronRight,
-  Key, AlertCircle, Eye, EyeOff, Search, TrendingUp, TrendingDown,
-  BarChart2, FileText, Compass, Layers, Check
+  AlertCircle, Eye, EyeOff, Search, TrendingUp, TrendingDown,
+  BarChart2, FileText, Compass, Layers, Check, Clock
 } from 'lucide-react';
 import AppHeader from '@/components/AppHeader';
 import { useAuth } from '@/lib/auth';
@@ -100,7 +100,7 @@ const POPULAR_STOCKS: Record<string, StockPreviewData> = {
 
 export default function LandingPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, register } = useAuth();
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -108,46 +108,75 @@ export default function LandingPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [pendingNotice, setPendingNotice] = useState('');
   const [authSuccess, setAuthSuccess] = useState('');
 
   // Interactive Stock Preview State
   const [selectedStock, setSelectedStock] = useState<string>('RELIANCE');
   const [stockQuery, setStockQuery] = useState('');
 
-  const handleFillDemo = () => {
-    setEmail('demo.analyst@marketmind.ai');
-    setPassword('MarketMind#2026');
-    setName('Senior Equity Analyst');
-    setAuthError('');
-  };
-
-  const handleAuthSubmit = (e: React.FormEvent) => {
+  const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
+    setPendingNotice('');
+    setAuthSuccess('');
     setAuthLoading(true);
 
-    setTimeout(() => {
-      setAuthLoading(false);
+    try {
       if (!email.includes('@')) {
-        setAuthError('Please provide a valid institutional or personal email address.');
+        setAuthError('Please provide a valid email address.');
+        setAuthLoading(false);
         return;
       }
       if (password.length < 6) {
         setAuthError('Security rule: Password must be at least 6 characters.');
+        setAuthLoading(false);
         return;
       }
 
-      login(email, authMode === 'register' ? (name || 'Registered Analyst') : undefined);
-      setAuthSuccess(
-        authMode === 'login'
-          ? 'Authentication verified. Launching terminal...'
-          : 'Account initialized. Directing to terminal...'
-      );
+      if (authMode === 'login') {
+        const result = await login(email, password);
+        if (result.success) {
+          setAuthSuccess('Authentication verified. Launching terminal...');
+          setTimeout(() => {
+            router.push('/dashboard');
+          }, 600);
+        } else if (result.status === 'pending') {
+          setPendingNotice(
+            result.message ||
+            'Your account is pending administrator approval by monthandas2008@gmail.com. Access will be unlocked once approved.'
+          );
+        } else {
+          setAuthError(result.message || 'Invalid credentials or access rejected.');
+        }
+      } else {
+        if (!name.trim()) {
+          setAuthError('Please provide your full name or organization.');
+          setAuthLoading(false);
+          return;
+        }
 
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 700);
-    }, 500);
+        const result = await register(email, password, name);
+        if (result.success && result.status === 'approved') {
+          setAuthSuccess('Administrator account verified. Launching terminal...');
+          setTimeout(() => {
+            router.push('/dashboard');
+          }, 600);
+        } else if (result.status === 'pending') {
+          setPendingNotice(
+            result.message ||
+            'Registration submitted successfully! Your account is pending administrator approval by monthandas2008@gmail.com. You will be able to log in once approved.'
+          );
+          setAuthMode('login');
+        } else {
+          setAuthError(result.message || 'Registration failed. Please try again.');
+        }
+      }
+    } catch (err: any) {
+      setAuthError(err?.message || 'A network error occurred. Please try again.');
+    } finally {
+      setAuthLoading(false);
+    }
   };
 
   const heroIndices = [
@@ -294,21 +323,6 @@ export default function LandingPage() {
                 </button>
               </div>
 
-              {/* Demo Credentials Auto-Fill */}
-              <div className="bg-[#0b0f19] border border-[#1e293b] rounded-lg p-2.5 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 text-[#cbd5e1]">
-                  <Key className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Demo Analyst Credentials</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleFillDemo}
-                  className="px-2.5 py-1 rounded bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 font-semibold transition-all text-[11px]"
-                >
-                  Auto-Fill
-                </button>
-              </div>
-
               {/* Form */}
               <form onSubmit={handleAuthSubmit} className="space-y-3.5 text-xs" suppressHydrationWarning>
                 {authMode === 'register' && (
@@ -335,7 +349,7 @@ export default function LandingPage() {
                     <Input
                       type="email"
                       required
-                      placeholder="analyst@marketmind.ai"
+                      placeholder="your.email@example.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="pl-9 bg-[#0b0f19] border-[#1e293b] text-white text-xs h-9 focus:border-emerald-500"
@@ -371,6 +385,16 @@ export default function LandingPage() {
                     </button>
                   </div>
                 </div>
+
+                {pendingNotice && (
+                  <div className="p-3 rounded-lg bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs flex items-start gap-2.5">
+                    <Clock className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+                    <div className="leading-relaxed">
+                      <span className="font-semibold block mb-0.5">Approval Required</span>
+                      <span>{pendingNotice}</span>
+                    </div>
+                  </div>
+                )}
 
                 {authError && (
                   <div className="p-2.5 rounded-lg bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">

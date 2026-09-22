@@ -20,6 +20,7 @@ interface DashboardSidebarProps {
   onSelectSymbol?: (symbol: string) => void;
   onOpenSearch?: () => void;
   onOpenGemini?: () => void;
+  onOpenAdmin?: () => void;
   activeSymbol?: string;
   mobileOpen?: boolean;
   onCloseMobile?: () => void;
@@ -31,6 +32,7 @@ export default function DashboardSidebar({
   onSelectSymbol,
   onOpenSearch,
   onOpenGemini,
+  onOpenAdmin,
   activeSymbol = 'RELIANCE',
   mobileOpen = false,
   onCloseMobile,
@@ -265,6 +267,28 @@ export default function DashboardSidebar({
             <Key className="w-3.5 h-3.5 text-amber-400 shrink-0" />
             {!collapsed && <span className="text-xs truncate">Configure Gemini Key</span>}
           </button>
+
+          {/* Master Admin User Approvals Trigger */}
+          {(user?.role === 'admin' || user?.email === 'monthandas2008@gmail.com') && (
+            <button
+              type="button"
+              onClick={onOpenAdmin}
+              className={`w-full flex items-center rounded-lg text-xs font-semibold text-amber-300 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-all ${
+                collapsed ? 'justify-center p-2.5' : 'px-3 py-2 justify-between'
+              }`}
+              title="User Access Approvals"
+            >
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                {!collapsed && <span>User Approvals</span>}
+              </div>
+              {!collapsed && (
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold uppercase">
+                  Admin
+                </span>
+              )}
+            </button>
+          )}
 
           {/* User profile badge */}
           {user && (

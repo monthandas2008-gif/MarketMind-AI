@@ -101,17 +101,34 @@ class MarketMindAPI {
     const fetchPromise = (async () => {
       const url = `${this.baseUrl}${endpoint}`;
       try {
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          ...(options?.headers as Record<string, string>),
+        };
+
+        // Attach stored Bearer session token if available
+        if (typeof window !== 'undefined') {
+          const token = localStorage.getItem('marketmind_token');
+          if (token && !headers['Authorization']) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+        }
+
         const response = await fetch(url, {
-          headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers,
-          },
           ...options,
+          headers,
         });
 
         if (!response.ok) {
-          const errBody = await response.text();
-          throw new Error(`API Error ${response.status}: ${errBody || response.statusText}`);
+          let errDetail = response.statusText;
+          try {
+            const errJson = await response.json();
+            errDetail = errJson.detail || errJson.message || JSON.stringify(errJson);
+          } catch {
+            const errBody = await response.text();
+            if (errBody) errDetail = errBody;
+          }
+          throw new Error(errDetail);
         }
 
         const data = await response.json();
@@ -269,7 +286,7 @@ class MarketMindAPI {
   }
 
   // User Dynamic Stock Tracking
-  async getUserTrackedStocks(userId: string = 'demo.analyst@marketmind.ai'): Promise<UserTrackedStock[]> {
+  async getUserTrackedStocks(userId: string = 'monthandas2008@gmail.com'): Promise<UserTrackedStock[]> {
     try {
       return await this.fetch<UserTrackedStock[]>(`/api/user/tracked?user_id=${encodeURIComponent(userId)}`);
     } catch (err) {
@@ -280,7 +297,7 @@ class MarketMindAPI {
 
   async trackStock(
     symbol: string,
-    userId: string = 'demo.analyst@marketmind.ai',
+    userId: string = 'monthandas2008@gmail.com',
     customGroup: string = 'Default'
   ): Promise<{ status: string; symbol: string; message: string }> {
     return this.fetch<{ status: string; symbol: string; message: string }>('/api/user/track', {
@@ -295,7 +312,7 @@ class MarketMindAPI {
 
   async untrackStock(
     symbol: string,
-    userId: string = 'demo.analyst@marketmind.ai'
+    userId: string = 'monthandas2008@gmail.com'
   ): Promise<{ status: string; symbol: string; message: string }> {
     const sym = symbol.toUpperCase().trim();
     return this.fetch<{ status: string; symbol: string; message: string }>(
@@ -305,7 +322,7 @@ class MarketMindAPI {
   }
 
   // User Personalized Reports
-  async getUserDailyReports(userId: string = 'demo.analyst@marketmind.ai'): Promise<UserDailyReport[]> {
+  async getUserDailyReports(userId: string = 'monthandas2008@gmail.com'): Promise<UserDailyReport[]> {
     try {
       return await this.fetch<UserDailyReport[]>(`/api/user/reports?user_id=${encodeURIComponent(userId)}`);
     } catch (err) {
@@ -316,7 +333,7 @@ class MarketMindAPI {
 
   async getUserDailyReportByDate(
     date: string,
-    userId: string = 'demo.analyst@marketmind.ai'
+    userId: string = 'monthandas2008@gmail.com'
   ): Promise<UserDailyReport> {
     return this.fetch<UserDailyReport>(
       `/api/user/reports/${encodeURIComponent(date)}?user_id=${encodeURIComponent(userId)}`
@@ -324,7 +341,7 @@ class MarketMindAPI {
   }
 
   async generateUserDailyReport(
-    userId: string = 'demo.analyst@marketmind.ai',
+    userId: string = 'monthandas2008@gmail.com',
     symbols?: string[]
   ): Promise<UserDailyReport> {
     return this.fetch<UserDailyReport>('/api/user/reports/generate', {
@@ -351,6 +368,44 @@ class MarketMindAPI {
     return this.fetch<{ status: string; message?: string; gemini_configured: boolean }>('/api/config/gemini-key', {
       method: 'POST',
       body: JSON.stringify({ api_key: apiKey.trim(), user_id: effectiveUserId }),
+    });
+  }
+
+  // Authentication & Access Control
+  async login(email: string, password: string): Promise<{ status: string; token: string; user: { id: string; email: string; name: string; role: string; status: string } }> {
+    const res = await this.fetch<{ status: string; token: string; user: { id: string; email: string; name: string; role: string; status: string } }>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    if (res.token && typeof window !== 'undefined') {
+      localStorage.setItem('marketmind_token', res.token);
+    }
+    return res;
+  }
+
+  async register(email: string, password: string, name: string): Promise<{ status: string; message: string; token?: string; user?: any }> {
+    const res = await this.fetch<{ status: string; message: string; token?: string; user?: any }>('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, name }),
+    });
+    if (res.token && typeof window !== 'undefined') {
+      localStorage.setItem('marketmind_token', res.token);
+    }
+    return res;
+  }
+
+  async getPendingUsers(): Promise<{ count: number; users: Array<{ id: string; email: string; name: string; role: string; status: string; created_at: string }> }> {
+    return this.fetch<{ count: number; users: Array<{ id: string; email: string; name: string; role: string; status: string; created_at: string }> }>('/api/auth/pending-users');
+  }
+
+  async getAllUsers(): Promise<{ count: number; users: Array<{ id: string; email: string; name: string; role: string; status: string; created_at: string }> }> {
+    return this.fetch<{ count: number; users: Array<{ id: string; email: string; name: string; role: string; status: string; created_at: string }> }>('/api/auth/users');
+  }
+
+  async approveUser(email: string, action: 'approve' | 'reject' = 'approve'): Promise<{ status: string; email: string; new_status: string; message: string }> {
+    return this.fetch<{ status: string; email: string; new_status: string; message: string }>('/api/auth/approve-user', {
+      method: 'POST',
+      body: JSON.stringify({ email, action }),
     });
   }
 }

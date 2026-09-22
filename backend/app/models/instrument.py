@@ -65,7 +65,7 @@ class UserTrackedStock(BaseModel):
 class TrackStockRequest(BaseModel):
     """Payload to add a stock to the user's tracking universe."""
     symbol: str
-    user_id: Optional[str] = "demo.analyst@marketmind.ai"
+    user_id: Optional[str] = "monthandas2008@gmail.com"
     priority: Optional[int] = 1
     custom_group: Optional[str] = "Default"
     report_enabled: Optional[bool] = True

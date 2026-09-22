@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Lock, Mail, User, ArrowRight, ShieldCheck, CheckCircle2, 
-  Key, AlertCircle, Eye, EyeOff
+  AlertCircle, Eye, EyeOff, Clock
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ export default function AuthModal({
   onSuccess
 }: AuthModalProps) {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, register } = useAuth();
   const [mode, setMode] = useState<'login' | 'register'>(defaultMode);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -34,44 +34,75 @@ export default function AuthModal({
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [pendingNotice, setPendingNotice] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  const handleFillDemo = () => {
-    setEmail('demo.analyst@marketmind.ai');
-    setPassword('MarketMind#2026');
-    setName('Senior Quant Analyst');
-    setError('');
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setPendingNotice('');
+    setSuccessMsg('');
     setLoading(true);
 
-    setTimeout(() => {
-      setLoading(false);
+    try {
       if (!email.includes('@')) {
-        setError('Please provide a valid institutional or personal email address.');
+        setError('Please provide a valid email address.');
+        setLoading(false);
         return;
       }
       if (password.length < 6) {
         setError('Security rule: Password must be at least 6 characters.');
+        setLoading(false);
         return;
       }
 
-      login(email, mode === 'register' ? (name || 'Registered Analyst') : undefined);
-      setSuccessMsg(
-        mode === 'login'
-          ? 'Authentication Verified! Unlocking Terminal...'
-          : 'Registration Successful! Initializing Desk...'
-      );
-      
-      setTimeout(() => {
-        if (onSuccess) onSuccess();
-        onClose();
-        router.push('/dashboard');
-      }, 700);
-    }, 500);
+      if (mode === 'login') {
+        const result = await login(email, password);
+        if (result.success) {
+          setSuccessMsg('Authentication verified! Launching terminal...');
+          setTimeout(() => {
+            if (onSuccess) onSuccess();
+            onClose();
+            router.push('/dashboard');
+          }, 600);
+        } else if (result.status === 'pending') {
+          setPendingNotice(
+            result.message ||
+            'Your account is pending administrator approval by monthandas2008@gmail.com. Access will be unlocked once approved.'
+          );
+        } else {
+          setError(result.message || 'Invalid credentials or access rejected.');
+        }
+      } else {
+        if (!name.trim()) {
+          setError('Please provide your full name or organization.');
+          setLoading(false);
+          return;
+        }
+
+        const result = await register(email, password, name);
+        if (result.success && result.status === 'approved') {
+          setSuccessMsg('Administrator account verified! Launching terminal...');
+          setTimeout(() => {
+            if (onSuccess) onSuccess();
+            onClose();
+            router.push('/dashboard');
+          }, 600);
+        } else if (result.status === 'pending') {
+          setPendingNotice(
+            result.message ||
+            'Registration submitted successfully! Your account is pending administrator approval by monthandas2008@gmail.com. You will be able to log in once approved.'
+          );
+          setMode('login');
+        } else {
+          setError(result.message || 'Registration failed. Please try again.');
+        }
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Authentication failed. Please verify credentials.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -84,12 +115,12 @@ export default function AuthModal({
             M
           </div>
           <h2 className="text-lg font-bold font-mono text-white tracking-tight">
-            {mode === 'login' ? 'Institutional Terminal Access' : 'Create Research Desk Account'}
+            {mode === 'login' ? 'MarketMind Terminal Access' : 'Create Research Desk Account'}
           </h2>
           <p className="text-xs text-[#94a3b8] font-mono mt-1">
             {mode === 'login' 
-              ? 'Sign in to access real-time Multi-Agent intelligence & live NSE telemetry.'
-              : 'Register to unlock full single-stock deep dives & custom alerts.'}
+              ? 'Authorized access only. Sign in with your approved credentials.'
+              : 'New analyst accounts require administrator approval before terminal access.'}
           </p>
         </div>
 
@@ -97,7 +128,7 @@ export default function AuthModal({
         <div className="flex bg-[#070a10] p-1 rounded-xl border border-[#1a2333] mb-4 text-xs font-mono">
           <button
             type="button"
-            onClick={() => { setMode('login'); setError(''); }}
+            onClick={() => { setMode('login'); setError(''); setPendingNotice(''); }}
             className={`flex-1 py-1.5 rounded-lg transition-all font-bold ${
               mode === 'login'
                 ? 'bg-[#101624] text-emerald-400 border border-emerald-500/30 shadow-sm'
@@ -108,7 +139,7 @@ export default function AuthModal({
           </button>
           <button
             type="button"
-            onClick={() => { setMode('register'); setError(''); }}
+            onClick={() => { setMode('register'); setError(''); setPendingNotice(''); }}
             className={`flex-1 py-1.5 rounded-lg transition-all font-bold ${
               mode === 'register'
                 ? 'bg-[#101624] text-emerald-400 border border-emerald-500/30 shadow-sm'
@@ -117,23 +148,6 @@ export default function AuthModal({
           >
             Register
           </button>
-        </div>
-
-        {/* Demo Credentials Quick Pill */}
-        <div className="mb-4 bg-[#090d16] border border-emerald-500/30 rounded-xl p-2.5 flex items-center justify-between text-[11px] font-mono">
-          <div className="flex items-center gap-1.5 text-emerald-400">
-            <Key className="w-3.5 h-3.5 text-amber-400" />
-            <span>Pre-configured Demo Key</span>
-          </div>
-          <Button
-            type="button"
-            variant="subtle"
-            size="sm"
-            onClick={handleFillDemo}
-            className="text-[10px] font-bold"
-          >
-            Auto-Fill
-          </Button>
         </div>
 
         {/* Form */}
@@ -162,7 +176,7 @@ export default function AuthModal({
               <Input
                 type="email"
                 required
-                placeholder="analyst@marketmind.ai"
+                placeholder="your.email@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="pl-8"
@@ -173,11 +187,6 @@ export default function AuthModal({
           <div>
             <div className="flex justify-between items-center mb-1">
               <label className="text-[#94a3b8]">Security Password</label>
-              {mode === 'login' && (
-                <span className="text-[10px] text-[#64748b] hover:text-emerald-400 cursor-pointer">
-                  Forgot?
-                </span>
-              )}
             </div>
             <div className="relative">
               <Lock className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b]" />
@@ -198,6 +207,16 @@ export default function AuthModal({
               </button>
             </div>
           </div>
+
+          {pendingNotice && (
+            <div className="p-3 rounded-lg bg-amber-950/40 border border-amber-500/40 text-amber-200 text-xs flex items-start gap-2.5">
+              <Clock className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+              <div className="leading-relaxed">
+                <span className="font-semibold block mb-0.5">Approval Required</span>
+                <span>{pendingNotice}</span>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="p-2.5 rounded-lg bg-rose-950/60 border border-rose-500/40 text-rose-400 text-[11px] flex items-center gap-2">
@@ -224,8 +243,8 @@ export default function AuthModal({
               {loading
                 ? 'Verifying...'
                 : mode === 'login'
-                ? 'Sign In to Workspace'
-                : 'Initialize Account'}
+                ? 'Sign In to Terminal'
+                : 'Request Account Access'}
             </span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Button>
@@ -236,7 +255,7 @@ export default function AuthModal({
           <span className="flex items-center gap-1">
             <ShieldCheck className="w-3 h-3 text-emerald-400" /> Grounded Session Guard
           </span>
-          <Badge variant="default">Zero Leak</Badge>
+          <Badge variant="default">Private & Encrypted</Badge>
         </div>
       </DialogContent>
     </Dialog>

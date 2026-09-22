@@ -6,10 +6,11 @@ import { usePathname, useRouter } from 'next/navigation';
 import { 
   Activity, Layers, FileText, Terminal, Key, 
   Search, ShieldCheck, TrendingUp, LogIn,
-  Menu, LogOut, CheckCircle2, PanelLeftClose, PanelLeftOpen
+  Menu, LogOut, CheckCircle2, PanelLeftClose, PanelLeftOpen, ShieldAlert
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import AuthModal from '@/components/common/AuthModal';
+import AdminApprovalModal from '@/components/AdminApprovalModal';
 import GlobalCommandMenu from '@/components/common/GlobalCommandMenu';
 import MarketTickerTape from '@/components/common/MarketTickerTape';
 import { useAuth } from '@/lib/auth';
@@ -51,6 +52,7 @@ export default function AppHeader({
   const [istTime, setIstTime] = useState<string>('');
   const [commandMenuOpen, setCommandMenuOpen] = useState(false);
   const [geminiModalOpen, setGeminiModalOpen] = useState(false);
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
@@ -265,6 +267,12 @@ export default function AppHeader({
                     <Key className="mr-2 h-3.5 w-3.5 text-amber-400" />
                     <span>Configure Gemini Key</span>
                   </DropdownMenuItem>
+                  {(userSession.role === 'admin' || userSession.email === 'monthandas2008@gmail.com') && (
+                    <DropdownMenuItem onClick={() => setAdminModalOpen(true)} className="text-amber-400 focus:text-amber-300">
+                      <ShieldAlert className="mr-2 h-3.5 w-3.5 text-amber-400" />
+                      <span>User Approvals</span>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator className="bg-[#1e293b]" />
                   <DropdownMenuItem onClick={logout} className="text-rose-400 focus:text-rose-300">
                     <LogOut className="mr-2 h-3.5 w-3.5" />
@@ -386,6 +394,12 @@ export default function AppHeader({
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Master Admin User Approval Modal */}
+      <AdminApprovalModal
+        isOpen={adminModalOpen}
+        onClose={() => setAdminModalOpen(false)}
+      />
     </>
   );
 }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import DashboardSidebar from '@/components/DashboardSidebar';
 import AppHeader from '@/components/AppHeader';
 import StockSearchModal from '@/components/common/StockSearchModal';
+import AdminApprovalModal from '@/components/AdminApprovalModal';
 import { api } from '@/lib/api';
 
 interface AppShellProps {
@@ -25,6 +26,7 @@ export default function AppShell({
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [geminiModalOpen, setGeminiModalOpen] = useState(false);
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [geminiKeyInput, setGeminiKeyInput] = useState('');
   const [keySaved, setKeySaved] = useState(false);
   const [keyError, setKeyError] = useState('');
@@ -98,6 +100,7 @@ export default function AppShell({
         onSelectSymbol={handleSelectSymbol}
         onOpenSearch={() => setSearchModalOpen(true)}
         onOpenGemini={() => setGeminiModalOpen(true)}
+        onOpenAdmin={() => setAdminModalOpen(true)}
         activeSymbol={activeSymbol}
         mobileOpen={mobileSidebarOpen}
         onCloseMobile={() => setMobileSidebarOpen(false)}
@@ -120,6 +123,12 @@ export default function AppShell({
       <StockSearchModal
         isOpen={searchModalOpen}
         onClose={() => setSearchModalOpen(false)}
+      />
+
+      {/* Admin User Approval Modal */}
+      <AdminApprovalModal
+        isOpen={adminModalOpen}
+        onClose={() => setAdminModalOpen(false)}
       />
 
       {/* Dynamic Gemini API Key Dialog */}

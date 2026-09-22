@@ -10,7 +10,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from app.routes import market, analysis, reports, chat, user
+from app.routes import market, analysis, reports, chat, user, auth
 from app.services.scheduler import market_scheduler
 from app.llm.client import gemini_client
 
@@ -107,6 +107,7 @@ app.include_router(analysis.router)
 app.include_router(reports.router)
 app.include_router(chat.router)
 app.include_router(user.router)
+app.include_router(auth.router)
 
 from app.services.key_manager import key_manager
 from app.db.client import db

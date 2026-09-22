@@ -5,7 +5,7 @@ import { api } from './api';
 import { UserTrackedStock } from './types';
 
 const STORAGE_KEY = 'marketmind_tracked_stocks_cache';
-const DEMO_USER_ID = 'demo.analyst@marketmind.ai';
+const DEMO_USER_ID = 'monthandas2008@gmail.com';
 
 const DEFAULT_TRACKED_SYMBOLS = ['RELIANCE', 'TCS', 'INFY', 'ICICIBANK', 'ITC'];
 

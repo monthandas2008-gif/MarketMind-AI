@@ -6,6 +6,7 @@ Supports Supabase PostgreSQL with an automatic SQLite fallback when credentials 
 import os
 import json
 import math
+import secrets
 import sqlite3
 import logging
 from typing import Any, Dict, List, Optional
@@ -207,6 +208,18 @@ class DatabaseClient:
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            salt TEXT NOT NULL,
+            name TEXT NOT NULL,
+            role TEXT DEFAULT 'analyst',
+            status TEXT DEFAULT 'pending',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
         """)
 
         # Seed initial stocks in local SQLite
@@ -256,9 +269,25 @@ class DatabaseClient:
         except Exception as e:
             logger.warning(f"Could not seed instruments table: {e}")
 
-        # Seed default tracking for demo user
+        # Seed or update master admin user (monthandas2008@gmail.com)
         try:
-            default_users = ["demo.analyst@marketmind.ai", "default_user"]
+            from app.services.auth_service import hash_password
+            admin_email = "monthandas2008@gmail.com"
+            cursor.execute("SELECT id FROM users WHERE email = ?", (admin_email,))
+            existing_admin = cursor.fetchone()
+            if not existing_admin:
+                h, s = hash_password("Manthan@69")
+                cursor.execute("""
+                    INSERT INTO users (id, email, password_hash, salt, name, role, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, ("usr_admin_manthan", admin_email, h, s, "Manthan Sharma (Admin)", "admin", "approved"))
+                logger.info("Master Admin account seeded: monthandas2008@gmail.com")
+        except Exception as e:
+            logger.warning(f"Could not seed admin user: {e}")
+
+        # Seed default tracking for master admin
+        try:
+            default_users = ["monthandas2008@gmail.com", "default_user"]
             default_symbols = ["RELIANCE", "TCS", "INFY", "ICICIBANK", "ITC"]
             for u in default_users:
                 for sym in default_symbols:
@@ -1054,4 +1083,142 @@ class DatabaseClient:
             conn.close()
             return True
 
+    # =========================================================
+    # USER AUTHENTICATION & ACCESS CONTROL
+    # =========================================================
+    async def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        clean_email = email.lower().strip()
+        if self.use_supabase:
+            try:
+                res = self.supabase.table("users").select("*").eq("email", clean_email).limit(1).execute()
+                if res.data:
+                    return res.data[0]
+            except Exception as e:
+                logger.warning(f"Supabase users query failed ({e}), falling back to SQLite.")
+
+        try:
+            conn = sqlite3.connect(self.local_db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM users WHERE email = ? LIMIT 1", (clean_email,))
+            row = cursor.fetchone()
+            conn.close()
+            return dict(row) if row else None
+        except Exception as e:
+            logger.error(f"Error fetching user from SQLite: {e}")
+            return None
+
+    async def create_user(
+        self,
+        email: str,
+        password_hash: str,
+        salt: str,
+        name: str,
+        role: str = "analyst",
+        status: str = "pending"
+    ) -> Optional[Dict[str, Any]]:
+        clean_email = email.lower().strip()
+        user_id = f"usr_{secrets.token_hex(8)}"
+        now_str = datetime.now().isoformat()
+        user_record = {
+            "id": user_id,
+            "email": clean_email,
+            "password_hash": password_hash,
+            "salt": salt,
+            "name": name.strip(),
+            "role": role,
+            "status": status,
+            "created_at": now_str,
+            "updated_at": now_str
+        }
+
+        if self.use_supabase:
+            try:
+                res = self.supabase.table("users").insert(user_record).execute()
+                if res.data:
+                    return res.data[0]
+            except Exception as e:
+                logger.warning(f"Supabase user insert failed ({e}), falling back to SQLite.")
+
+        try:
+            conn = sqlite3.connect(self.local_db_path)
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO users (id, email, password_hash, salt, name, role, status, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                user_id, clean_email, password_hash, salt, name.strip(), role, status, now_str, now_str
+            ))
+            conn.commit()
+            conn.close()
+            return user_record
+        except Exception as e:
+            logger.error(f"Error creating user in SQLite: {e}")
+            return None
+
+    async def get_pending_users(self) -> List[Dict[str, Any]]:
+        if self.use_supabase:
+            try:
+                res = self.supabase.table("users").select("id, email, name, role, status, created_at").eq("status", "pending").order("created_at", desc=True).execute()
+                if res.data is not None:
+                    return res.data
+            except Exception as e:
+                logger.warning(f"Supabase pending users query failed ({e}), falling back to SQLite.")
+
+        try:
+            conn = sqlite3.connect(self.local_db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, email, name, role, status, created_at FROM users WHERE status = 'pending' ORDER BY created_at DESC")
+            rows = [dict(r) for r in cursor.fetchall()]
+            conn.close()
+            return rows
+        except Exception as e:
+            logger.error(f"Error fetching pending users from SQLite: {e}")
+            return []
+
+    async def get_all_users(self) -> List[Dict[str, Any]]:
+        if self.use_supabase:
+            try:
+                res = self.supabase.table("users").select("id, email, name, role, status, created_at, updated_at").order("created_at", desc=True).execute()
+                if res.data is not None:
+                    return res.data
+            except Exception as e:
+                logger.warning(f"Supabase all users query failed ({e}), falling back to SQLite.")
+
+        try:
+            conn = sqlite3.connect(self.local_db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, email, name, role, status, created_at, updated_at FROM users ORDER BY created_at DESC")
+            rows = [dict(r) for r in cursor.fetchall()]
+            conn.close()
+            return rows
+        except Exception as e:
+            logger.error(f"Error fetching all users from SQLite: {e}")
+            return []
+
+    async def update_user_status(self, email: str, status: str) -> bool:
+        clean_email = email.lower().strip()
+        now_str = datetime.now().isoformat()
+        supabase_success = False
+        if self.use_supabase:
+            try:
+                self.supabase.table("users").update({"status": status, "updated_at": now_str}).eq("email", clean_email).execute()
+                supabase_success = True
+            except Exception as e:
+                logger.warning(f"Supabase user status update failed ({e}), updating local SQLite.")
+
+        try:
+            conn = sqlite3.connect(self.local_db_path)
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET status = ?, updated_at = ? WHERE email = ?", (status, now_str, clean_email))
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as e:
+            logger.error(f"Error updating user status in SQLite: {e}")
+            return supabase_success
+
 db = DatabaseClient()
+
