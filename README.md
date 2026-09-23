@@ -1,5 +1,7 @@
 # MarketMind — AI-Powered Indian Stock Market Intelligence
 
+[![Live Platform](https://img.shields.io/badge/Live%20Terminal-market--mind--ai--tau.vercel.app-00df8f?style=for-the-badge&logo=vercel&logoColor=black)](https://market-mind-ai-tau.vercel.app/)
+
 [![Next.js](https://img.shields.io/badge/Next.js-16.3.5-black?style=flat&logo=next.js)](https://nextjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue?style=flat&logo=python)](https://python.org/)
@@ -7,6 +9,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 An institutional-grade financial intelligence and multi-agent reasoning terminal built specifically for Indian equity markets (**NSE / BSE**).
+
+🔗 **Live Web Application:** [https://market-mind-ai-tau.vercel.app/](https://market-mind-ai-tau.vercel.app/)
 
 MarketMind continuously tracks major benchmark indices (**NIFTY 50, SENSEX, BANK NIFTY, INDIA VIX**), calculates deterministic mathematical technical indicators in Python, ingests live financial news feeds, and coordinates a team of 4 specialized AI reasoning desks to deliver grounded, explainable market insights.
 
@@ -94,7 +98,7 @@ MarketMind/
 
 ---
 
-## Quick Start & Local Development
+## Local Development & Setup
 
 ### Prerequisites
 - **Python**: 3.10 or higher
@@ -155,37 +159,6 @@ npm install
 npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) in your browser.
-
----
-
-## Production Deployment
-
-### Deploying Frontend to Vercel
-1. Push repository to **GitHub**.
-2. Go to [Vercel](https://vercel.com/new) and import the repository.
-3. Configure settings:
-   - **Root Directory**: `frontend`
-   - **Framework Preset**: `Next.js`
-4. Set Environment Variables:
-   - `NEXT_PUBLIC_API_URL`: Your deployed backend API URL (e.g. `https://your-backend.onrender.com`).
-5. Click **Deploy**.
-
-### Deploying Backend (Render / Railway / AWS / VPS)
-1. Deploy as a Python web service pointing to the `backend/` directory.
-2. **Build Command**: `pip install -r requirements.txt`
-3. **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-4. **Environment Variables**:
-   - `FRONTEND_URL`: Your Vercel frontend URL (e.g. `https://marketmind.vercel.app`)
-   - `GEMINI_API_KEY`: Google Gemini API key
-   - `SECRET_KEY`: Long random string for session tokens and key encryption
-   - `SUPABASE_URL`: (Optional) Your Supabase project URL
-   - `SUPABASE_SERVICE_KEY`: (Optional) Your Supabase service role key
-
-### Supabase Migrations
-If using Supabase PostgreSQL, execute in the **SQL Editor**:
-1. `supabase/migrations/001_initial_schema.sql` (Core tables & instruments)
-2. `supabase/migrations/002_dynamic_tracking_and_user_keys.sql` (Watchlists & user keys)
-3. `supabase/migrations/003_users_and_approval_workflow.sql` (Users, PBKDF2 credentials & approval workflow)
 
 ---
 
