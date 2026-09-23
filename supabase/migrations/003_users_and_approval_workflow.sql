@@ -27,9 +27,9 @@ INSERT INTO users (id, email, password_hash, salt, name, role, status)
 VALUES (
     gen_random_uuid(),
     'monthandas2008@gmail.com',
-    '348981442c75a40bbafc5fa08ff9ba85da9f62c08c4a1616c148c3b7a5a415ff',
+    'c18ad295766749919a19cc129bfee4622fcaf41f0d7277ea864928a276acbf74',
     '8792019ab76ce0efc123456789abcdef',
-    'Manthan Sharma (Admin)',
+    'Manthan Das (Admin)',
     'admin',
     'approved'
 )

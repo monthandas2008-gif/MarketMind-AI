@@ -59,3 +59,11 @@ class MarketOverview(BaseModel):
     declines: int = 0
     sectors: List[SectorPerformance] = []
     timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
+
+    @property
+    def advances_count(self) -> int:
+        return self.advances
+
+    @property
+    def declines_count(self) -> int:
+        return self.declines

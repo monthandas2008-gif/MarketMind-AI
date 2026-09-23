@@ -163,7 +163,7 @@ function LoginFormContent() {
                 <Input
                   type="text"
                   required
-                  placeholder="e.g. Manthan Sharma"
+                  placeholder="e.g. Manthan Das"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="pl-9 bg-[#0b0f19] border-[#1e293b] text-white text-xs h-9 focus:border-emerald-500"

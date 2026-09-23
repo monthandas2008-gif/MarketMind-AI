@@ -4,6 +4,7 @@ Supports Supabase PostgreSQL with an automatic SQLite fallback when credentials 
 """
 
 import os
+import uuid
 import json
 import math
 import secrets
@@ -280,7 +281,7 @@ class DatabaseClient:
                 cursor.execute("""
                     INSERT INTO users (id, email, password_hash, salt, name, role, status)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, ("usr_admin_manthan", admin_email, h, s, "Manthan Sharma (Admin)", "admin", "approved"))
+                """, ("usr_admin_manthan", admin_email, h, s, "Manthan Das (Admin)", "admin", "approved"))
                 logger.info("Master Admin account seeded: monthandas2008@gmail.com")
         except Exception as e:
             logger.warning(f"Could not seed admin user: {e}")
@@ -1118,7 +1119,7 @@ class DatabaseClient:
         status: str = "pending"
     ) -> Optional[Dict[str, Any]]:
         clean_email = email.lower().strip()
-        user_id = f"usr_{secrets.token_hex(8)}"
+        user_id = str(uuid.uuid4())
         now_str = datetime.now().isoformat()
         user_record = {
             "id": user_id,

@@ -160,7 +160,7 @@ export default function AuthModal({
                 <Input
                   type="text"
                   required
-                  placeholder="e.g. Manthan Sharma"
+                  placeholder="e.g. Manthan Das"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="pl-8"

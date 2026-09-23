@@ -300,7 +300,7 @@ Provide a structured, side-by-side institutional comparison highlighting momentu
 
 CURRENT LIVE INDIAN MARKET TELEMETRY:
 - NIFTY 50 Benchmark: {overview.nifty_close:.2f} ({overview.nifty_change_percent:+.2f}%)
-- Advances / Declines: {overview.advances_count} Advancing vs {overview.declines_count} Declining
+- Advances / Declines: {overview.advances} Advancing vs {overview.declines} Declining
 - Top Gainers: {', '.join([f"{g.symbol} ({g.change_percent:+.2f}%)" for g in overview.top_gainers]) or 'None'}
 - Top Losers: {', '.join([f"{l.symbol} ({l.change_percent:+.2f}%)" for l in overview.top_losers]) or 'None'}
 - Significant Movers & Unusual Volume:
@@ -328,7 +328,7 @@ INSTRUCTIONS:
                 formatted_response = (
                     f"### Indian Market Session Overview\n\n"
                     f"- **NIFTY 50:** {overview.nifty_close:.2f} ({overview.nifty_change_percent:+.2f}%)\n"
-                    f"- **Advance / Decline:** {overview.advances_count} Advancing / {overview.declines_count} Declining\n"
+                    f"- **Advance / Decline:** {overview.advances} Advancing / {overview.declines} Declining\n"
                     f"- **Top Gainers:** {', '.join([f'{g.symbol} ({g.change_percent:+.2f}%)' for g in overview.top_gainers]) or 'None'}\n"
                     f"- **Top Losers:** {', '.join([f'{l.symbol} ({l.change_percent:+.2f}%)' for l in overview.top_losers]) or 'None'}\n\n"
                     f"**Top Headlines:**\n" +
