@@ -989,10 +989,14 @@ class DatabaseClient:
     # CHAT QUERIES
     # =========================================================
     async def save_chat_query(self, query_data: Dict[str, Any]) -> bool:
-        if self.use_supabase:
-            self.supabase.table("chat_queries").insert(query_data).execute()
-            return True
-        else:
+        try:
+            if self.use_supabase:
+                try:
+                    self.supabase.table("chat_queries").insert(query_data).execute()
+                    return True
+                except Exception as e:
+                    logger.warning(f"Supabase save_chat_query failed: {e}; falling back to local SQLite.")
+
             conn = sqlite3.connect(self.local_db_path)
             cursor = conn.cursor()
             cursor.execute("""
@@ -1009,6 +1013,9 @@ class DatabaseClient:
             conn.commit()
             conn.close()
             return True
+        except Exception as e:
+            logger.warning(f"Failed to persist chat query to database: {e}")
+            return False
 
     # =========================================================
     # USER API KEYS (ENCRYPTED STORAGE)

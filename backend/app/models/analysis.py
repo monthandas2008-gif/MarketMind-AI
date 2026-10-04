@@ -18,6 +18,17 @@ class AgentResult(BaseModel):
     evidence: List[Evidence]
     timestamp: datetime
 
+    @property
+    def indicators(self) -> dict:
+        for ev in self.evidence:
+            if ev.data_point:
+                return ev.data_point
+        return {}
+
+    @property
+    def sentiment(self) -> str:
+        return self.signal
+
 class StockAnalysis(BaseModel):
     symbol: str
     technical: Optional[AgentResult] = None
