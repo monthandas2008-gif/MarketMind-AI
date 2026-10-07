@@ -44,6 +44,9 @@ export default function DashboardSidebar({
     { href: '/markets', label: 'Market Map', icon: TrendingUp },
     { href: '/stocks', label: 'Screener', icon: Layers },
     { href: '/intelligence', label: 'Multi-Agent', icon: ShieldCheck, badge: '4 Desks' },
+    { href: '/safety', label: 'Trade Safety', icon: ShieldAlert, badge: 'NEW' },
+    { href: '/risk', label: 'Risk Mgmt', icon: Sparkles },
+    { href: '/journal', label: 'Journal', icon: FileText },
     { href: '/reports', label: 'Briefings', icon: FileText },
     { href: '/ask', label: 'Ask AI', icon: Terminal },
   ];

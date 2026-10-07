@@ -35,6 +35,21 @@ MarketMind continuously tracks major benchmark indices (**NIFTY 50, SENSEX, BANK
 - **Statistical Anomaly Desk**: Detects volume surges and price breakouts using rolling standard deviations and volume Z-scores.
 - **Lead Synthesis Desk**: Consolidates multi-desk telemetry into directional consensus signals (Bullish / Neutral / Bearish) with evidence confidence ratings.
 
+### 🛡️ Trader Safety Intelligence — 5-Agent Trade Safety Committee *(NEW)*
+- **Purpose**: Improve trade decision quality and help users avoid avoidable mistakes through transparent AI-agent review, risk awareness, and behavioural guardrails.
+- **5-Agent Sequential Committee**:
+  1. **Market Risk Analyst** — Assesses market environment (VIX, breadth, regime) and whether it supports the proposed trade.
+  2. **Portfolio Risk Analyst** — Evaluates position sizing, sector/single-stock exposure, and daily risk budget using deterministic Python math.
+  3. **Trade Plan Analyst** — Checks plan completeness (entry, stop-loss, target, invalidating condition) and logical consistency.
+  4. **News Evidence Analyst** — Synthesizes recent financial news evidence for or against the trade.
+  5. **Behavioural Coach** — Detects loss streaks, revenge trading, position size anomalies, and missing stop-losses.
+- **Trade Safety Reviewer** — Aggregates all 5 agents into a final explainable safety card with one of: `SAFE_TO_REVIEW`, `PROCEED_WITH_CAUTION`, `PAUSE_AND_REVIEW`, or `DO_NOT_PROCEED`.
+- **Deterministic Position Sizing Calculator** — Maximum safe quantity formula with SEBI statutory charges (STT, exchange, SEBI, stamp duty, GST) and execution slippage.
+- **Trade Journal & Analytics** — Record trades, calculate win rate, profit factor, expectancy, max drawdown, and longest losing streak. All math is pure Python.
+- **Risk Management Dashboard** — Configure risk profiles, view live portfolio exposure, and calculate position sizes.
+
+> **Safety Constraints**: Zero LLM math — all financial calculations are deterministic Python functions. Gemini only summarizes evidence and explains uncertainty. No broker API integration, no order placement, no personalized financial advice, no guaranteed returns.
+
 ### 🔍 Dynamic Indian Equities Screener & Deep Dive Analysis
 - **Universal Indian Ticker Search**: Search across NSE and BSE instruments using an in-memory cached Instrument Master.
 - **Interactive Technical Charts**: High-performance TradingView lightweight candlestick charts with volume histograms and technical overlays.
@@ -70,25 +85,42 @@ MarketMind/
 │   │   │   ├── news_intel.py             # News Intelligence (RSS Extraction)
 │   │   │   ├── anomaly.py                # Statistical Anomaly Detection (Z-Score)
 │   │   │   ├── synthesis.py              # Lead Synthesis Consensus Engine
-│   │   │   └── orchestrator.py           # Multi-Agent Workflow Coordinator
+│   │   │   ├── orchestrator.py           # Multi-Agent Workflow Coordinator
+│   │   │   └── safety/                   # Trader Safety Intelligence Module
+│   │   │       ├── orchestrator.py       # Trade Safety Committee Coordinator
+│   │   │       ├── market_risk.py        # Market Risk Analyst Agent
+│   │   │       ├── portfolio_risk.py     # Portfolio Risk Analyst Agent
+│   │   │       ├── trade_plan.py         # Trade Plan Analyst Agent
+│   │   │       ├── news_evidence.py      # News Evidence Analyst Agent
+│   │   │       ├── behaviour.py          # Behavioural Coach Agent
+│   │   │       ├── reviewer.py           # Trade Safety Reviewer Agent
+│   │   │       ├── schemas.py            # Pydantic Models & Typed Contracts
+│   │   │       ├── prompts.py            # Role-Specific System Prompts
+│   │   │       └── base.py              # Base Agent with Retry & Fallback
 │   │   ├── db/                           # Database Client (Supabase / Local SQLite)
 │   │   ├── llm/                          # Gemini LLM Integration & Prompt Caching
 │   │   ├── middleware/                   # Security & Rate Limiting
-│   │   ├── routes/                       # REST API Endpoints (Auth, Market, Chat, Reports)
-│   │   └── services/                     # Data Feeds, Auth & Security Services
+│   │   ├── routes/                       # REST API Endpoints (Auth, Market, Chat, Reports, Safety)
+│   │   └── services/                     # Data Feeds, Auth, Security & Safety Calculations
 │   ├── tests/
-│   │   └── test_system.py                # End-to-end integration and security test suite
+│   │   ├── test_system.py                # End-to-end integration and security test suite
+│   │   ├── test_safety_calculations.py   # Deterministic safety math unit tests
+│   │   └── test_safety_committee.py      # 5-Agent committee workflow tests
 │   ├── requirements.txt                  # Python dependencies
 │   └── .env.example                      # Backend environment variable template
 ├── frontend/                             # Next.js 16 (Turbopack) Web Terminal
 │   ├── src/
 │   │   ├── app/                          # Next.js App Router Pages
+│   │   │   ├── safety/                   # Trade Safety Review Page
+│   │   │   ├── risk/                     # Risk Management Dashboard
+│   │   │   └── journal/                  # Trade Journal & Analytics
 │   │   ├── components/                   # UI Components, Modals & Visualizations
-│   │   └── lib/                          # API Client, Auth Context, Formatters
+│   │   │   └── safety/                   # SafetyReviewCard, PositionSizeCalculator
+│   │   └── lib/                          # API Client, Auth Context, Formatters, Safety Types
 │   ├── package.json                      # Node.js dependencies
 │   └── .env.example                      # Frontend environment variable template
 ├── supabase/
-│   └── migrations/                       # PostgreSQL Schemas (001, 002, 003)
+│   └── migrations/                       # PostgreSQL Schemas (001–004)
 ├── docs/
 │   └── assets/                           # Visual Documentation Assets
 │       └── landing-page.png              # High-Resolution Landing Page Screenshot

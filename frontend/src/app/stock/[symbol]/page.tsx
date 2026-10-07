@@ -403,7 +403,33 @@ export default function StockAnalysisPage({ params }: { params: Promise<{ symbol
           </div>
         </div>
 
-        {/* 7. RELATED INTELLIGENCE REPORTS LINK */}
+        {/* 7. TRADER SAFETY INTELLIGENCE BANNER */}
+        <section className="bg-gradient-to-r from-emerald-950/40 to-[#111827] rounded-xl p-4 border border-emerald-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-white font-semibold flex items-center gap-2">
+                Trader Safety Intelligence
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  5-Agent Committee
+                </span>
+              </p>
+              <p className="text-[#94a3b8] text-[11px] mt-0.5">
+                Run pre-trade review for {symbol}: market risk, position sizing, trade plan validity & behavioural biases.
+              </p>
+            </div>
+          </div>
+          <Link
+            href={`/safety?ticker=${symbol}`}
+            className="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-black font-semibold text-xs transition-colors shrink-0 flex items-center gap-1.5"
+          >
+            Review {symbol} Trade →
+          </Link>
+        </section>
+
+        {/* 8. RELATED INTELLIGENCE REPORTS LINK */}
         <section className="bg-[#111827] rounded-xl p-3.5 border border-[#1e293b] flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
             <FileText className="w-4 h-4 text-emerald-400" />

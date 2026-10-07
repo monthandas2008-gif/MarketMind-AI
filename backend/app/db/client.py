@@ -221,6 +221,109 @@ class DatabaseClient:
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
+
+        -- Trader Safety Intelligence Tables
+        CREATE TABLE IF NOT EXISTS risk_profiles (
+            id TEXT PRIMARY KEY,
+            user_id TEXT UNIQUE NOT NULL,
+            trading_capital REAL NOT NULL,
+            risk_per_trade_percent REAL DEFAULT 1.0,
+            max_daily_loss_percent REAL DEFAULT 3.0,
+            max_open_positions INTEGER DEFAULT 5,
+            max_sector_exposure_percent REAL DEFAULT 25.0,
+            max_single_stock_exposure_percent REAL DEFAULT 15.0,
+            max_trades_per_day INTEGER DEFAULT 6,
+            cooling_off_minutes INTEGER DEFAULT 30,
+            account_mode TEXT DEFAULT 'paper',
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS trade_plans (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            ticker TEXT NOT NULL,
+            direction TEXT NOT NULL,
+            entry_price REAL NOT NULL,
+            stop_loss REAL NOT NULL,
+            target REAL NOT NULL,
+            quantity INTEGER NOT NULL,
+            instrument_type TEXT DEFAULT 'EQUITY',
+            strategy TEXT,
+            setup TEXT,
+            planned_holding_period TEXT,
+            invalidating_condition TEXT,
+            user_notes TEXT,
+            status TEXT DEFAULT 'DRAFT',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS trades (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            trade_plan_id TEXT,
+            ticker TEXT NOT NULL,
+            direction TEXT NOT NULL,
+            entry_price REAL NOT NULL,
+            exit_price REAL,
+            stop_loss REAL,
+            target REAL,
+            quantity INTEGER NOT NULL,
+            entry_time TEXT NOT NULL,
+            exit_time TEXT,
+            charges REAL DEFAULT 0.0,
+            net_pnl REAL DEFAULT 0.0,
+            status TEXT DEFAULT 'OPEN',
+            exit_reason TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS safety_reviews (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            trade_plan_id TEXT,
+            ticker TEXT NOT NULL,
+            overall_verdict TEXT NOT NULL,
+            safety_score INTEGER NOT NULL,
+            summary TEXT NOT NULL,
+            recommendation TEXT NOT NULL,
+            market_risk_agent TEXT,
+            portfolio_risk_agent TEXT,
+            trade_plan_agent TEXT,
+            news_evidence_agent TEXT,
+            behavioural_coach_agent TEXT,
+            deterministic_math TEXT,
+            critical_flags TEXT,
+            warnings TEXT,
+            educational_takeaway TEXT,
+            market_session TEXT,
+            user_override BOOLEAN DEFAULT 0,
+            override_reason TEXT,
+            override_acknowledged_at TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS safety_agent_runs (
+            id TEXT PRIMARY KEY,
+            safety_review_id TEXT NOT NULL,
+            agent_type TEXT NOT NULL,
+            status TEXT NOT NULL,
+            input_payload TEXT,
+            output_payload TEXT,
+            execution_time_ms REAL,
+            error_message TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS audit_logs (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            action TEXT NOT NULL,
+            entity_type TEXT NOT NULL,
+            entity_id TEXT,
+            details TEXT,
+            timestamp TEXT DEFAULT CURRENT_TIMESTAMP
+        );
         """)
 
         # Seed initial stocks in local SQLite
@@ -1228,5 +1331,402 @@ class DatabaseClient:
             logger.error(f"Error updating user status in SQLite: {e}")
             return supabase_success
 
+    # =========================================================================
+    # Trader Safety Intelligence CRUD & Query Helpers
+    # =========================================================================
+
+    async def get_user_risk_profile(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Fetch user risk profile from Supabase or SQLite fallback."""
+        if self.use_supabase:
+            try:
+                res = self.supabase.table("risk_profiles").select("*").eq("user_id", user_id).limit(1).execute()
+                if res.data and len(res.data) > 0:
+                    return res.data[0]
+            except Exception as e:
+                logger.warning(f"Supabase risk_profile fetch failed ({e}), falling back to SQLite.")
+
+        try:
+            conn = sqlite3.connect(self.local_db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM risk_profiles WHERE user_id = ?", (user_id,))
+            row = cursor.fetchone()
+            conn.close()
+            return dict(row) if row else None
+        except Exception as e:
+            logger.error(f"Error fetching risk profile from SQLite: {e}")
+            return None
+
+    async def save_user_risk_profile(self, user_id: str, profile_data: Dict[str, Any]) -> bool:
+        """Save or update user risk profile."""
+        now_str = datetime.now().isoformat()
+        profile_id = profile_data.get("id") or str(uuid.uuid4())
+        payload = {
+            "id": profile_id,
+            "user_id": user_id,
+            "trading_capital": float(profile_data.get("trading_capital", 100000.0)),
+            "risk_per_trade_percent": float(profile_data.get("risk_per_trade_percent", 1.0)),
+            "max_daily_loss_percent": float(profile_data.get("max_daily_loss_percent", 3.0)),
+            "max_open_positions": int(profile_data.get("max_open_positions", 5)),
+            "max_sector_exposure_percent": float(profile_data.get("max_sector_exposure_percent", 25.0)),
+            "max_single_stock_exposure_percent": float(profile_data.get("max_single_stock_exposure_percent", 15.0)),
+            "max_trades_per_day": int(profile_data.get("max_trades_per_day", 6)),
+            "cooling_off_minutes": int(profile_data.get("cooling_off_minutes", 30)),
+            "account_mode": profile_data.get("account_mode", "paper"),
+            "updated_at": now_str
+        }
+
+        if self.use_supabase:
+            try:
+                self.supabase.table("risk_profiles").upsert(payload).execute()
+            except Exception as e:
+                logger.warning(f"Supabase risk_profile upsert failed ({e}), saving to SQLite.")
+
+        try:
+            conn = sqlite3.connect(self.local_db_path)
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO risk_profiles (
+                    id, user_id, trading_capital, risk_per_trade_percent, max_daily_loss_percent,
+                    max_open_positions, max_sector_exposure_percent, max_single_stock_exposure_percent,
+                    max_trades_per_day, cooling_off_minutes, account_mode, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    trading_capital=excluded.trading_capital,
+                    risk_per_trade_percent=excluded.risk_per_trade_percent,
+                    max_daily_loss_percent=excluded.max_daily_loss_percent,
+                    max_open_positions=excluded.max_open_positions,
+                    max_sector_exposure_percent=excluded.max_sector_exposure_percent,
+                    max_single_stock_exposure_percent=excluded.max_single_stock_exposure_percent,
+                    max_trades_per_day=excluded.max_trades_per_day,
+                    cooling_off_minutes=excluded.cooling_off_minutes,
+                    account_mode=excluded.account_mode,
+                    updated_at=excluded.updated_at
+            """, (
+                payload["id"], payload["user_id"], payload["trading_capital"], payload["risk_per_trade_percent"],
+                payload["max_daily_loss_percent"], payload["max_open_positions"], payload["max_sector_exposure_percent"],
+                payload["max_single_stock_exposure_percent"], payload["max_trades_per_day"],
+                payload["cooling_off_minutes"], payload["account_mode"], payload["updated_at"]
+            ))
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as e:
+            logger.error(f"Error saving risk profile to SQLite: {e}")
+            return False
+
+    async def get_user_open_positions(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get user open positions."""
+        if self.use_supabase:
+            try:
+                res = self.supabase.table("trades").select("*").eq("user_id", user_id).eq("status", "OPEN").execute()
+                if res.data is not None:
+                    return res.data
+            except Exception as e:
+                logger.warning(f"Supabase open positions fetch failed ({e}), falling back to SQLite.")
+
+        try:
+            conn = sqlite3.connect(self.local_db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM trades WHERE user_id = ? AND status = 'OPEN'", (user_id,))
+            rows = [dict(r) for r in cursor.fetchall()]
+            conn.close()
+            return rows
+        except Exception as e:
+            logger.error(f"Error fetching open positions from SQLite: {e}")
+            return []
+
+    async def get_user_trades(self, user_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get user trades history ordered by entry_time descending."""
+        if self.use_supabase:
+            try:
+                res = self.supabase.table("trades").select("*").eq("user_id", user_id).order("entry_time", desc=True).limit(limit).execute()
+                if res.data is not None:
+                    return res.data
+            except Exception as e:
+                logger.warning(f"Supabase trades fetch failed ({e}), falling back to SQLite.")
+
+        try:
+            conn = sqlite3.connect(self.local_db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM trades WHERE user_id = ? ORDER BY entry_time DESC LIMIT ?", (user_id, limit))
+            rows = [dict(r) for r in cursor.fetchall()]
+            conn.close()
+            return rows
+        except Exception as e:
+            logger.error(f"Error fetching trades from SQLite: {e}")
+            return []
+
+    async def save_user_trade(self, trade_data: Dict[str, Any]) -> Optional[str]:
+        """Save a trade record."""
+        trade_id = trade_data.get("id") or str(uuid.uuid4())
+        trade_data["id"] = trade_id
+        if self.use_supabase:
+            try:
+                self.supabase.table("trades").upsert(trade_data).execute()
+            except Exception as e:
+                logger.warning(f"Supabase save_user_trade failed ({e}), saving to SQLite.")
+
+        try:
+            conn = sqlite3.connect(self.local_db_path)
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO trades (
+                    id, user_id, trade_plan_id, ticker, direction, entry_price, exit_price,
+                    stop_loss, target, quantity, entry_time, exit_time, charges, net_pnl,
+                    status, exit_reason
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    exit_price=excluded.exit_price,
+                    exit_time=excluded.exit_time,
+                    charges=excluded.charges,
+                    net_pnl=excluded.net_pnl,
+                    status=excluded.status,
+                    exit_reason=excluded.exit_reason
+            """, (
+                trade_data["id"], trade_data["user_id"], trade_data.get("trade_plan_id"),
+                trade_data["ticker"], trade_data["direction"], trade_data["entry_price"],
+                trade_data.get("exit_price"), trade_data.get("stop_loss"), trade_data.get("target"),
+                trade_data["quantity"], trade_data["entry_time"], trade_data.get("exit_time"),
+                trade_data.get("charges", 0.0), trade_data.get("net_pnl", 0.0),
+                trade_data.get("status", "OPEN"), trade_data.get("exit_reason")
+            ))
+            conn.commit()
+            conn.close()
+            return trade_id
+        except Exception as e:
+            logger.error(f"Error saving trade to SQLite: {e}")
+            return None
+
+    async def get_user_trade_plans(self, user_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get user trade plans ordered by created_at descending."""
+        if self.use_supabase:
+            try:
+                res = self.supabase.table("trade_plans").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(limit).execute()
+                if res.data is not None:
+                    return res.data
+            except Exception as e:
+                logger.warning(f"Supabase trade_plans fetch failed ({e}), falling back to SQLite.")
+
+        try:
+            conn = sqlite3.connect(self.local_db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM trade_plans WHERE user_id = ? ORDER BY created_at DESC LIMIT ?", (user_id, limit))
+            rows = [dict(r) for r in cursor.fetchall()]
+            conn.close()
+            return rows
+        except Exception as e:
+            logger.error(f"Error fetching trade plans from SQLite: {e}")
+            return []
+
+    async def save_user_trade_plan(self, plan_data: Dict[str, Any]) -> Optional[str]:
+        """Save a trade plan record."""
+        plan_id = plan_data.get("id") or str(uuid.uuid4())
+        plan_data["id"] = plan_id
+        now_str = datetime.now().isoformat()
+        plan_data.setdefault("created_at", now_str)
+        plan_data["updated_at"] = now_str
+
+        if self.use_supabase:
+            try:
+                self.supabase.table("trade_plans").upsert(plan_data).execute()
+            except Exception as e:
+                logger.warning(f"Supabase save_user_trade_plan failed ({e}), saving to SQLite.")
+
+        try:
+            conn = sqlite3.connect(self.local_db_path)
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO trade_plans (
+                    id, user_id, ticker, direction, entry_price, stop_loss, target,
+                    quantity, instrument_type, strategy, setup, planned_holding_period,
+                    invalidating_condition, user_notes, status, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    ticker=excluded.ticker, direction=excluded.direction, entry_price=excluded.entry_price,
+                    stop_loss=excluded.stop_loss, target=excluded.target, quantity=excluded.quantity,
+                    instrument_type=excluded.instrument_type, strategy=excluded.strategy,
+                    setup=excluded.setup, planned_holding_period=excluded.planned_holding_period,
+                    invalidating_condition=excluded.invalidating_condition, user_notes=excluded.user_notes,
+                    status=excluded.status, updated_at=excluded.updated_at
+            """, (
+                plan_data["id"], plan_data["user_id"], plan_data["ticker"], plan_data["direction"],
+                plan_data["entry_price"], plan_data["stop_loss"], plan_data["target"], plan_data["quantity"],
+                plan_data.get("instrument_type", "EQUITY"), plan_data.get("strategy"), plan_data.get("setup"),
+                plan_data.get("planned_holding_period"), plan_data.get("invalidating_condition"),
+                plan_data.get("user_notes"), plan_data.get("status", "DRAFT"),
+                plan_data["created_at"], plan_data["updated_at"]
+            ))
+            conn.commit()
+            conn.close()
+            return plan_id
+        except Exception as e:
+            logger.error(f"Error saving trade plan to SQLite: {e}")
+            return None
+
+    async def save_safety_review(self, review_data: Dict[str, Any]) -> Optional[str]:
+        """Save a complete Trade Safety Review record and nested runs."""
+        review_id = review_data.get("id") or str(uuid.uuid4())
+        now_str = datetime.now().isoformat()
+
+        # Serialize dict/list JSON columns
+        m_agent = json.dumps(review_data.get("market_risk_agent")) if isinstance(review_data.get("market_risk_agent"), dict) else review_data.get("market_risk_agent")
+        p_agent = json.dumps(review_data.get("portfolio_risk_agent")) if isinstance(review_data.get("portfolio_risk_agent"), dict) else review_data.get("portfolio_risk_agent")
+        t_agent = json.dumps(review_data.get("trade_plan_agent")) if isinstance(review_data.get("trade_plan_agent"), dict) else review_data.get("trade_plan_agent")
+        n_agent = json.dumps(review_data.get("news_evidence_agent")) if isinstance(review_data.get("news_evidence_agent"), dict) else review_data.get("news_evidence_agent")
+        b_agent = json.dumps(review_data.get("behavioural_coach_agent")) if isinstance(review_data.get("behavioural_coach_agent"), dict) else review_data.get("behavioural_coach_agent")
+        d_math = json.dumps(review_data.get("deterministic_math")) if isinstance(review_data.get("deterministic_math"), dict) else review_data.get("deterministic_math")
+        c_flags = json.dumps(review_data.get("critical_flags")) if isinstance(review_data.get("critical_flags"), list) else review_data.get("critical_flags")
+        warns = json.dumps(review_data.get("warnings")) if isinstance(review_data.get("warnings"), list) else review_data.get("warnings")
+
+        overall_verdict = review_data.get("overall_verdict") or review_data.get("safety_recommendation") or "PROCEED_WITH_CAUTION"
+        record = {
+            "id": review_id,
+            "user_id": review_data["user_id"],
+            "trade_plan_id": review_data.get("trade_plan_id"),
+            "ticker": review_data["ticker"],
+            "overall_verdict": overall_verdict,
+            "safety_score": int(review_data.get("safety_score", review_data.get("overall_confidence", 70))),
+            "summary": review_data.get("summary", ""),
+            "recommendation": review_data.get("recommendation", overall_verdict),
+            "market_risk_agent": m_agent,
+            "portfolio_risk_agent": p_agent,
+            "trade_plan_agent": t_agent,
+            "news_evidence_agent": n_agent,
+            "behavioural_coach_agent": b_agent,
+            "deterministic_math": d_math,
+            "critical_flags": c_flags,
+            "warnings": warns,
+            "educational_takeaway": review_data.get("educational_takeaway", ""),
+            "market_session": review_data.get("market_session", "REGULAR"),
+            "user_override": 1 if review_data.get("user_override") else 0,
+            "override_reason": review_data.get("override_reason"),
+            "override_acknowledged_at": review_data.get("override_acknowledged_at"),
+            "created_at": review_data.get("created_at", now_str)
+        }
+
+        if self.use_supabase:
+            try:
+                self.supabase.table("safety_reviews").upsert(record).execute()
+            except Exception as e:
+                logger.warning(f"Supabase safety_review upsert failed ({e}), saving to SQLite.")
+
+        try:
+            conn = sqlite3.connect(self.local_db_path)
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO safety_reviews (
+                    id, user_id, trade_plan_id, ticker, overall_verdict, safety_score,
+                    summary, recommendation, market_risk_agent, portfolio_risk_agent,
+                    trade_plan_agent, news_evidence_agent, behavioural_coach_agent,
+                    deterministic_math, critical_flags, warnings, educational_takeaway,
+                    market_session, user_override, override_reason, override_acknowledged_at,
+                    created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    user_override=excluded.user_override,
+                    override_reason=excluded.override_reason,
+                    override_acknowledged_at=excluded.override_acknowledged_at
+            """, (
+                record["id"], record["user_id"], record["trade_plan_id"], record["ticker"],
+                record["overall_verdict"], record["safety_score"], record["summary"],
+                record["recommendation"], record["market_risk_agent"], record["portfolio_risk_agent"],
+                record["trade_plan_agent"], record["news_evidence_agent"], record["behavioural_coach_agent"],
+                record["deterministic_math"], record["critical_flags"], record["warnings"],
+                record["educational_takeaway"], record["market_session"], record["user_override"],
+                record["override_reason"], record["override_acknowledged_at"], record["created_at"]
+            ))
+            conn.commit()
+            conn.close()
+            return review_id
+        except Exception as e:
+            logger.error(f"Error saving safety review to SQLite: {e}")
+            return None
+
+    async def get_safety_reviews(self, ticker: Optional[str] = None, user_id: Optional[str] = None, limit: int = 20) -> List[Dict[str, Any]]:
+        """Fetch past safety reviews, optionally filtered by ticker or user."""
+        if self.use_supabase:
+            try:
+                query = self.supabase.table("safety_reviews").select("*")
+                if ticker:
+                    query = query.eq("ticker", ticker.upper())
+                if user_id:
+                    query = query.eq("user_id", user_id)
+                res = query.order("created_at", desc=True).limit(limit).execute()
+                if res.data is not None:
+                    # Deserialise JSON columns
+                    for item in res.data:
+                        for col in ["market_risk_agent", "portfolio_risk_agent", "trade_plan_agent", "news_evidence_agent", "behavioural_coach_agent", "deterministic_math", "critical_flags", "warnings"]:
+                            if item.get(col) and isinstance(item[col], str):
+                                try:
+                                    item[col] = json.loads(item[col])
+                                except Exception:
+                                    pass
+                    return res.data
+            except Exception as e:
+                logger.warning(f"Supabase safety reviews fetch failed ({e}), falling back to SQLite.")
+
+        try:
+            conn = sqlite3.connect(self.local_db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            query = "SELECT * FROM safety_reviews WHERE 1=1"
+            params = []
+            if ticker:
+                query += " AND ticker = ?"
+                params.append(ticker.upper())
+            if user_id:
+                query += " AND user_id = ?"
+                params.append(user_id)
+            query += " ORDER BY created_at DESC LIMIT ?"
+            params.append(limit)
+
+            cursor.execute(query, tuple(params))
+            rows = [dict(r) for r in cursor.fetchall()]
+            conn.close()
+            for item in rows:
+                for col in ["market_risk_agent", "portfolio_risk_agent", "trade_plan_agent", "news_evidence_agent", "behavioural_coach_agent", "deterministic_math", "critical_flags", "warnings"]:
+                    if item.get(col) and isinstance(item[col], str):
+                        try:
+                            item[col] = json.loads(item[col])
+                        except Exception:
+                            pass
+            return rows
+        except Exception as e:
+            logger.error(f"Error fetching safety reviews from SQLite: {e}")
+            return []
+
+    async def log_audit_action(self, user_id: str, action: str, entity_type: str, entity_id: Optional[str] = None, details: Optional[Dict[str, Any]] = None):
+        """Append to audit log for full compliance and accountability."""
+        log_id = str(uuid.uuid4())
+        now_str = datetime.now().isoformat()
+        details_str = json.dumps(details) if details else "{}"
+
+        if self.use_supabase:
+            try:
+                self.supabase.table("audit_logs").insert({
+                    "id": log_id, "user_id": user_id, "action": action,
+                    "entity_type": entity_type, "entity_id": entity_id,
+                    "details": details_str, "timestamp": now_str
+                }).execute()
+            except Exception as e:
+                logger.warning(f"Supabase audit log insert failed: {e}")
+
+        try:
+            conn = sqlite3.connect(self.local_db_path)
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO audit_logs (id, user_id, action, entity_type, entity_id, details, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (log_id, user_id, action, entity_type, entity_id, details_str, now_str))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.error(f"Error logging audit action to SQLite: {e}")
+
 db = DatabaseClient()
+
 
