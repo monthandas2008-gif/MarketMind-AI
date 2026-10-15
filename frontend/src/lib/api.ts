@@ -213,8 +213,8 @@ class MarketMindAPI {
   }
 
   // Analysis
-  async getAnalysis(symbol: string): Promise<StockAnalysis> {
-    return this.fetch<StockAnalysis>(`/api/analysis/${symbol}`);
+  async getAnalysis(symbol: string, forceRefresh: boolean = false): Promise<StockAnalysis> {
+    return this.fetch<StockAnalysis>(`/api/analysis/${symbol}`, undefined, 60000, forceRefresh);
   }
 
   async runAnalysis(symbol: string): Promise<StockAnalysis> {

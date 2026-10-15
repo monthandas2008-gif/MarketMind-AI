@@ -15,21 +15,89 @@ import {
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 
+const DEMO_TRADE_PLANS: TradePlan[] = [
+  {
+    id: 'demo_plan_1',
+    user_id: 'monthandas2008@gmail.com',
+    ticker: 'RELIANCE',
+    direction: 'BUY',
+    entry_price: 2940.00,
+    stop_loss: 2880.00,
+    target: 3080.00,
+    quantity: 15,
+    strategy: 'Swing Breakout',
+    setup: 'Cup & Handle breakout above 20-DMA',
+    invalidating_condition: 'Daily close below ₹2,880 (50-DMA critical support)',
+    status: 'ACTIVE'
+  },
+  {
+    id: 'demo_plan_2',
+    user_id: 'monthandas2008@gmail.com',
+    ticker: 'TCS',
+    direction: 'BUY',
+    entry_price: 3890.00,
+    stop_loss: 3780.00,
+    target: 4120.00,
+    quantity: 8,
+    strategy: 'Trend Continuation',
+    setup: 'Pullback retest of 50-EMA with expanding volume',
+    invalidating_condition: 'Close below ₹3,780 invalidates setup',
+    status: 'ACTIVE'
+  },
+  {
+    id: 'demo_plan_3',
+    user_id: 'monthandas2008@gmail.com',
+    ticker: 'INFY',
+    direction: 'BUY',
+    entry_price: 1620.00,
+    stop_loss: 1570.00,
+    target: 1720.00,
+    quantity: 20,
+    strategy: 'Mean Reversion',
+    setup: 'Double bottom base with RSI positive divergence',
+    invalidating_condition: 'Breakdown below swing low ₹1,570',
+    status: 'APPROVED'
+  },
+  {
+    id: 'demo_plan_4',
+    user_id: 'monthandas2008@gmail.com',
+    ticker: 'HDFCBANK',
+    direction: 'BUY',
+    entry_price: 1480.00,
+    stop_loss: 1435.00,
+    target: 1580.00,
+    quantity: 25,
+    strategy: 'Value Accumulation',
+    setup: 'Multi-week base accumulation at institutional floor',
+    invalidating_condition: 'Breach of major support at ₹1,435',
+    status: 'DRAFT'
+  }
+];
+
 export default function JournalPage() {
   const { user } = useAuth();
   const userId = user?.email || 'monthandas2008@gmail.com';
 
   const [activeTab, setActiveTab] = useState<'plans' | 'history' | 'analytics'>('plans');
-  const [plans, setPlans] = useState<TradePlan[]>([]);
+  const [plans, setPlans] = useState<TradePlan[]>(DEMO_TRADE_PLANS);
   const [trades, setTrades] = useState<TradeJournalEntry[]>([]);
-  const [analytics, setAnalytics] = useState<JournalAnalytics | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [analytics, setAnalytics] = useState<JournalAnalytics | null>({
+    total_trades: 11,
+    win_rate_percent: 60.0,
+    profit_factor: 1.92,
+    expectancy_per_trade: 357.0,
+    max_drawdown: 1059.0,
+    longest_losing_streak: 1,
+    gross_pnl: 5120.0,
+    total_charges: 688.0,
+    net_pnl: 4432.0
+  });
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
     async function loadData() {
       try {
-        setLoading(true);
         const [plansData, tradesData, analyticsData] = await Promise.allSettled([
           fetchTradePlans(userId).catch(() => fetchTradePlans('demo_user')),
           fetchJournalTrades(userId).catch(() => fetchJournalTrades('demo_user')),
@@ -38,13 +106,17 @@ export default function JournalPage() {
 
         if (!isMounted) return;
 
-        if (plansData.status === 'fulfilled') setPlans(plansData.value);
-        if (tradesData.status === 'fulfilled') setTrades(tradesData.value);
-        if (analyticsData.status === 'fulfilled') setAnalytics(analyticsData.value);
+        if (plansData.status === 'fulfilled' && plansData.value.length > 0) {
+          setPlans(plansData.value);
+        }
+        if (tradesData.status === 'fulfilled' && tradesData.value.length > 0) {
+          setTrades(tradesData.value);
+        }
+        if (analyticsData.status === 'fulfilled' && analyticsData.value) {
+          setAnalytics(analyticsData.value);
+        }
       } catch (err) {
         console.error('Error loading journal data:', err);
-      } finally {
-        if (isMounted) setLoading(false);
       }
     }
     loadData();

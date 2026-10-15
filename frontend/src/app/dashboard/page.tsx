@@ -414,17 +414,7 @@ export default function Dashboard() {
 
         {/* 5. AI MULTI-AGENT LIVE MESH */}
         <section>
-          <AgentMeshNode
-            activeTicker={activeChartSymbol}
-            technicalSignal={nifty.change_percent >= 0 ? 'bullish' : 'bearish'}
-            technicalDetail={`EMA 20/50 Bullish Alignment • RSI 56.4 • Key support holding at 20-DMA.`}
-            newsSummary={news[0]?.title ? news[0].title.slice(0, 75) + '...' : 'RBI Policy Neutrality • Corporate Earnings Resiliency'}
-            newsSourcesCount={news.length || 4}
-            anomalyStatus={movers.length > 0 ? `${movers[0]?.symbol} Spike Detected` : 'Nominal Equilibrium'}
-            volumeRatio={1.18}
-            synthesisThesis={latestReport?.market_summary || "Multi-Agent Synthesis: Indian equities demonstrate positive structural resilience led by IT and Capital Goods. Low VIX regime signals steady institutional accumulation."}
-            synthesisConfidence="STRONG CONVICTION"
-          />
+          <AgentMeshNode activeTicker={activeChartSymbol} />
         </section>
 
         {/* 6. VERIFIED NEWS STREAM + MONITORED EQUITIES & WATCHLIST */}
