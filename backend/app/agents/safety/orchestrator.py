@@ -196,8 +196,26 @@ class TradeSafetyOrchestrator:
             deterministic_calculations=portfolio_risk.calculations.model_dump()
         )
 
-        # 9. Persist review to Database safely
+        # 9. Persist Trade Plan and Safety Review to Database safely
         try:
+            plan_status = "APPROVED" if reviewer.safety_recommendation == "SAFE_TO_REVIEW" else "ACTIVE"
+            await db.save_user_trade_plan({
+                "id": f"tp_{clean_ticker}_{workflow_id}",
+                "user_id": user_id,
+                "ticker": clean_ticker,
+                "direction": request.direction,
+                "entry_price": request.entry_price,
+                "stop_loss": request.stop_loss or round(request.entry_price * 0.97, 2),
+                "target": request.target or round(request.entry_price * 1.05, 2),
+                "quantity": request.quantity,
+                "instrument_type": "EQUITY",
+                "strategy": request.strategy or "Committee Plan",
+                "setup": request.setup or "5-Agent Committee Review",
+                "invalidating_condition": f"Review recommendation: {reviewer.safety_recommendation}",
+                "user_notes": request.notes or "",
+                "status": plan_status
+            })
+
             await db.save_safety_review({
                 "workflow_id": workflow_id,
                 "user_id": user_id,
@@ -211,7 +229,7 @@ class TradeSafetyOrchestrator:
                 "created_at": now_iso
             })
         except Exception as e:
-            logger.warning(f"Could not persist safety review to database: {e}")
+            logger.warning(f"Could not persist trade plan / safety review to database: {e}")
 
         logger.info(f"[{workflow_id}] Completed Trade Safety Committee review: {reviewer.safety_recommendation}")
         return response

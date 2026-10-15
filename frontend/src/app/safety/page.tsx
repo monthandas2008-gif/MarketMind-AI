@@ -6,8 +6,10 @@ import AppShell from '@/components/AppShell';
 import { ShieldCheck, Play, Clock, AlertTriangle } from 'lucide-react';
 import { requestTradeSafetyReview, TradeSafetyReviewResponse } from '@/lib/safety';
 import SafetyReviewCard from '@/components/safety/SafetyReviewCard';
+import { useAuth } from '@/lib/auth';
 
 function SafetyPageContent() {
+  const { user } = useAuth();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TradeSafetyReviewResponse | null>(null);
@@ -59,7 +61,7 @@ function SafetyPageContent() {
         notes: form.notes,
         capital: form.capital ? Number(form.capital) : undefined,
         risk_percent: form.risk_percent ? Number(form.risk_percent) : undefined,
-        user_id: 'demo_user'
+        user_id: user?.email || 'monthandas2008@gmail.com'
       });
       setResult(response);
     } catch (err: any) {
