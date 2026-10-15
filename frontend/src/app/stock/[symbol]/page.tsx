@@ -304,9 +304,9 @@ export default function StockAnalysisPage({ params }: { params: Promise<{ symbol
               </div>
             </div>
 
-            <p className="text-xs text-[#cbd5e1] leading-relaxed">
+            <div className="text-xs text-[#cbd5e1] leading-relaxed whitespace-pre-line bg-[#0b0f19] p-4 rounded-lg border border-[#1e293b]">
               {analysis.synthesis.findings}
-            </p>
+            </div>
 
             {/* 5. GROUNDED EVIDENCE PROVENANCE LEDGER */}
             {analysis.synthesis.evidence && analysis.synthesis.evidence.length > 0 && (

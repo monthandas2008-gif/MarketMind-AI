@@ -295,6 +295,32 @@ export async function fetchPortfolioExposure(userId: string): Promise<any> {
   return res.json();
 }
 
+export interface TradePlan {
+  id: string;
+  user_id: string;
+  ticker: string;
+  direction: 'BUY' | 'SELL' | 'LONG' | 'SHORT';
+  entry_price: number;
+  stop_loss: number;
+  target: number;
+  quantity: number;
+  instrument_type?: string;
+  strategy?: string;
+  setup?: string;
+  planned_holding_period?: string;
+  invalidating_condition?: string;
+  user_notes?: string;
+  status: 'DRAFT' | 'ACTIVE' | 'APPROVED' | 'ARCHIVED' | 'EXECUTED';
+  created_at?: string;
+}
+
+export async function fetchTradePlans(userId: string): Promise<TradePlan[]> {
+  const res = await fetch(`${API_BASE}/api/journal/plans?user_id=${encodeURIComponent(userId)}`);
+  if (!res.ok) throw new Error('Failed to fetch trade plans');
+  const data = await res.json();
+  return data.plans || [];
+}
+
 export async function fetchJournalTrades(userId: string): Promise<TradeJournalEntry[]> {
   const res = await fetch(`${API_BASE}/api/journal/trades?user_id=${encodeURIComponent(userId)}`);
   if (!res.ok) throw new Error('Failed to fetch journal trades');

@@ -185,15 +185,26 @@ async def get_portfolio_exposure(user_id: str = Query(...)):
     """
     try:
         profile_data = await db.get_user_risk_profile(user_id)
-        capital = float(profile_data["trading_capital"]) if profile_data else 100000.0
+        capital = float(profile_data["trading_capital"]) if profile_data else 500000.0
 
         open_positions = await db.get_user_open_positions(user_id)
-        exposure = calculate_portfolio_exposure(open_positions, capital)
+        exposure = calculate_portfolio_exposure(open_positions, 0.0, capital)
+
+        # Compute sector mapping and individual risks
+        total_risk_exposure = sum(
+            pos.get("quantity", 0) * abs(pos.get("entry_price", 0) - pos.get("stop_loss", pos.get("entry_price", 0)))
+            for pos in open_positions if pos.get("stop_loss")
+        )
 
         return {
             "user_id": user_id,
             "capital": capital,
+            "open_positions_count": len(open_positions),
             "open_position_count": len(open_positions),
+            "open_positions": open_positions,
+            "total_risk_exposure": round(total_risk_exposure, 2),
+            "current_exposure_pct": exposure.get("current_exposure_pct", 0.0),
+            "total_exposure_value": exposure.get("total_exposure_value", 0.0),
             "exposure": exposure
         }
     except Exception as e:

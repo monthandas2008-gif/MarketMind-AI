@@ -441,6 +441,43 @@ class DatabaseClient:
                             charges, net_pnl, status, exit_reason
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, sample_trades)
+
+                # 3. Seed Demo Trade Plans
+                cursor.execute("SELECT COUNT(*) FROM trade_plans WHERE user_id = ?", (u_id,))
+                if cursor.fetchone()[0] == 0:
+                    sample_plans = [
+                        (
+                            f"plan1_{u_id}", u_id, "RELIANCE", "BUY", 2940.00, 2880.00, 3080.00, 15,
+                            "EQUITY", "Swing Breakout", "Cup & Handle breakout above 20-DMA",
+                            "5-10 Days", "Daily close below 2880 (50-DMA critical support)",
+                            "Institutional refining margin expansion supports upward momentum.", "ACTIVE"
+                        ),
+                        (
+                            f"plan2_{u_id}", u_id, "TCS", "BUY", 3890.00, 3780.00, 4120.00, 8,
+                            "EQUITY", "Trend Continuation", "Pullback retest of 50-EMA with high delivery %",
+                            "2-4 Weeks", "Close below 3780 invalidates bullish continuation setup",
+                            "Tier-1 banking contract renewals provide multi-quarter revenue visibility.", "ACTIVE"
+                        ),
+                        (
+                            f"plan3_{u_id}", u_id, "INFY", "BUY", 1620.00, 1570.00, 1720.00, 20,
+                            "EQUITY", "Mean Reversion", "Double bottom base on daily timeframe with positive divergence",
+                            "1-2 Weeks", "Breakdown below swing low 1570 invalidates double bottom",
+                            "Cloud transformation deal wins supporting market share gains.", "APPROVED"
+                        ),
+                        (
+                            f"plan4_{u_id}", u_id, "HDFCBANK", "BUY", 1480.00, 1435.00, 1580.00, 25,
+                            "EQUITY", "Value Accumulation", "Multi-week base accumulation near institutional floor",
+                            "3-6 Weeks", "Breach of major swing support at 1435",
+                            "Credit-to-deposit ratio normalization ongoing; low downside risk.", "DRAFT"
+                        )
+                    ]
+                    cursor.executemany("""
+                        INSERT OR IGNORE INTO trade_plans (
+                            id, user_id, ticker, direction, entry_price, stop_loss, target,
+                            quantity, instrument_type, strategy, setup, planned_holding_period,
+                            invalidating_condition, user_notes, status
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, sample_plans)
         except Exception as e:
             logger.warning(f"Could not seed demo portfolio data: {e}")
 

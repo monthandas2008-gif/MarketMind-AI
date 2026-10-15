@@ -33,7 +33,7 @@ MarketMind continuously tracks major benchmark indices (**NIFTY 50, SENSEX, BANK
 - **Technical Analysis Desk**: Deterministic math computed in Python (`numpy`, `pandas`, `ta`) — RSI-14, MACD (12, 26, 9), SMA-20/50, Bollinger Bands, and Volume Ratios — eliminating LLM arithmetic hallucination.
 - **News Intelligence Desk**: Scrapes, deduplicates, and summarizes financial press (Economic Times, Moneycontrol, Livemint) with verifiable source URLs.
 - **Statistical Anomaly Desk**: Detects volume surges and price breakouts using rolling standard deviations and volume Z-scores.
-- **Lead Synthesis Desk**: Consolidates multi-desk telemetry into directional consensus signals (Bullish / Neutral / Bearish) with evidence confidence ratings.
+- **Lead Synthesis Desk**: Consolidates multi-desk telemetry into directional consensus signals, actionable tactical setups (`ACCUMULATE ON DIP`, `BREAKOUT WATCH`, `RANGE-BOUND NEUTRAL`), precise price levels (immediate support, key resistance, thesis invalidation), and reward-to-risk asymmetry ratings.
 
 ### 🛡️ Trader Safety Intelligence — 5-Agent Trade Safety Committee
 - **Purpose**: Improve trade decision quality and help users avoid avoidable mistakes through transparent AI-agent review, risk awareness, and behavioural guardrails.
