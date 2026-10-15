@@ -7,7 +7,7 @@ import {
   Activity, TrendingUp, Layers, ShieldCheck, 
   FileText, Terminal,
   PanelLeftClose, PanelLeftOpen, Key, Plus,
-  Search, ShieldAlert, Sparkles
+  Search, ShieldAlert, Sparkles, Briefcase
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useTracking } from '@/lib/tracking';
@@ -44,6 +44,7 @@ export default function DashboardSidebar({
     { href: '/markets', label: 'Market Map', icon: TrendingUp },
     { href: '/stocks', label: 'Screener', icon: Layers },
     { href: '/intelligence', label: 'Multi-Agent', icon: ShieldCheck, badge: '4 Desks' },
+    { href: '/portfolio', label: 'Portfolio', icon: Briefcase, badge: 'DEMO' },
     { href: '/safety', label: 'Trade Safety', icon: ShieldAlert, badge: 'NEW' },
     { href: '/risk', label: 'Risk Mgmt', icon: Sparkles },
     { href: '/journal', label: 'Journal', icon: FileText },

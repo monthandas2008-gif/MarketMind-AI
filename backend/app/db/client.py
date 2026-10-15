@@ -391,8 +391,8 @@ class DatabaseClient:
 
         # Seed default tracking for master admin
         try:
-            default_users = ["monthandas2008@gmail.com", "default_user"]
-            default_symbols = ["RELIANCE", "TCS", "INFY", "ICICIBANK", "ITC"]
+            default_users = ["monthandas2008@gmail.com", "default_user", "demo_user"]
+            default_symbols = ["RELIANCE", "TCS", "INFY", "ICICIBANK", "ITC", "HDFCBANK"]
             for u in default_users:
                 for sym in default_symbols:
                     cursor.execute("""
@@ -401,6 +401,48 @@ class DatabaseClient:
                     """, (f"{u}_{sym}", u, sym, f"NSE_{sym}"))
         except Exception as e:
             logger.warning(f"Could not seed default user tracking: {e}")
+
+        # Seed demo risk profile & trade journal for admin and demo users
+        try:
+            demo_target_users = ["monthandas2008@gmail.com", "demo_user"]
+            for u_id in demo_target_users:
+                # 1. Risk profile
+                cursor.execute("""
+                    INSERT OR IGNORE INTO risk_profiles (
+                        id, user_id, trading_capital, risk_per_trade_percent,
+                        max_daily_loss_percent, max_open_positions,
+                        max_sector_exposure_percent, max_single_stock_exposure_percent,
+                        max_trades_per_day, cooling_off_minutes, account_mode
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    f"rp_{u_id}", u_id, 500000.0, 1.5, 3.0, 5, 25.0, 15.0, 6, 30, "paper"
+                ))
+
+                # 2. Open / Closed Trades
+                cursor.execute("SELECT COUNT(*) FROM trades WHERE user_id = ?", (u_id,))
+                if cursor.fetchone()[0] == 0:
+                    sample_trades = [
+                        (f"tr1_{u_id}", u_id, "INFY", "LONG", 1558.00, 1618.40, 1520.0, 1650.0, 15, "2026-09-05T09:30:00Z", "2026-09-22T15:15:00Z", 67.10, 898.50, "CLOSED", "TARGET_HIT"),
+                        (f"tr2_{u_id}", u_id, "ICICIBANK", "LONG", 1120.00, 1088.60, 1090.0, 1160.0, 25, "2026-09-10T10:00:00Z", "2026-09-28T14:30:00Z", 95.20, -791.50, "CLOSED", "STOP_LOSS_HIT"),
+                        (f"tr3_{u_id}", u_id, "ITC", "LONG", 462.00, 498.70, 445.0, 510.0, 80, "2026-08-20T11:15:00Z", "2026-09-15T13:45:00Z", 148.40, 2896.00, "CLOSED", "TARGET_HIT"),
+                        (f"tr4_{u_id}", u_id, "TATAMOTORS", "LONG", 975.50, 940.20, 940.0, 1020.0, 30, "2026-09-01T09:45:00Z", "2026-09-12T11:00:00Z", 98.70, -1059.00, "CLOSED", "STOP_LOSS_HIT"),
+                        (f"tr5_{u_id}", u_id, "RELIANCE", "LONG", 2745.00, 2865.50, 2690.0, 2880.0, 15, "2026-08-08T10:30:00Z", "2026-09-03T14:15:00Z", 112.30, 1782.00, "CLOSED", "TARGET_HIT"),
+                        (f"tr6_{u_id}", u_id, "TCS", "LONG", 3950.00, 3820.00, 3820.0, 4100.0, 8, "2026-08-15T09:20:00Z", "2026-08-30T15:00:00Z", 86.40, -1040.00, "CLOSED", "STOP_LOSS_HIT"),
+                        (f"tr7_{u_id}", u_id, "INFY", "LONG", 1590.00, 1650.00, 1550.0, 1660.0, 20, "2026-07-20T13:00:00Z", "2026-08-12T14:45:00Z", 98.00, 1168.00, "CLOSED", "TARGET_HIT"),
+                        (f"tr8_{u_id}", u_id, "HDFCBANK", "LONG", 1440.00, 1525.00, 1400.0, 1540.0, 20, "2026-06-15T11:00:00Z", "2026-07-08T15:20:00Z", 82.40, 1688.00, "CLOSED", "TARGET_HIT"),
+                        (f"tr9_{u_id}", u_id, "RELIANCE", "LONG", 2810.50, None, 2720.0, 3050.0, 20, "2026-09-18T10:15:00Z", None, 0.0, 2640.0, "OPEN", None),
+                        (f"tr10_{u_id}", u_id, "TCS", "LONG", 3820.00, None, 3680.0, 4100.0, 5, "2026-10-01T11:30:00Z", None, 0.0, 371.0, "OPEN", None),
+                        (f"tr11_{u_id}", u_id, "HDFCBANK", "LONG", 1510.00, None, 1440.0, 1620.0, 30, "2026-09-25T14:00:00Z", None, 0.0, -837.0, "OPEN", None)
+                    ]
+                    cursor.executemany("""
+                        INSERT OR IGNORE INTO trades (
+                            id, user_id, ticker, direction, entry_price, exit_price,
+                            stop_loss, target, quantity, entry_time, exit_time,
+                            charges, net_pnl, status, exit_reason
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, sample_trades)
+        except Exception as e:
+            logger.warning(f"Could not seed demo portfolio data: {e}")
 
         # Migrate existing tables if needed
         try:

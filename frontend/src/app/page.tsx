@@ -100,8 +100,17 @@ const POPULAR_STOCKS: Record<string, StockPreviewData> = {
 
 export default function LandingPage() {
   const router = useRouter();
-  const { login, register } = useAuth();
+  const { user, isLoading, login, register } = useAuth();
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+
+  const handleProtectedNav = (e: React.MouseEvent, href: string) => {
+    if (!user && !isLoading) {
+      e.preventDefault();
+      // Scroll to the auth card at top of page and focus email field
+      document.getElementById('auth-email-input')?.focus();
+      document.getElementById('auth-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -240,18 +249,18 @@ export default function LandingPage() {
 
             {/* CTAs */}
             <div className="flex flex-wrap items-center gap-3 pt-2">
-              <Link href="/dashboard">
+              <Link href="/dashboard" onClick={(e) => handleProtectedNav(e, '/dashboard')}>
                 <Button variant="default" size="lg" className="font-semibold text-xs gap-2 bg-emerald-500 hover:bg-emerald-600 text-[#0b0f19]">
                   <span>Explore Terminal Workspace</span>
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               </Link>
-              <Link href="/stocks">
+              <Link href="/stocks" onClick={(e) => handleProtectedNav(e, '/stocks')}>
                 <Button variant="outline" size="lg" className="font-medium text-xs border-[#1e293b] bg-[#111827] text-[#cbd5e1] hover:text-white hover:border-[#334155]">
                   NSE Equity Screener
                 </Button>
               </Link>
-              <Link href="/ask">
+              <Link href="/ask" onClick={(e) => handleProtectedNav(e, '/ask')}>
                 <Button variant="outline" size="lg" className="font-medium text-xs border-[#1e293b] bg-[#111827] text-[#cbd5e1] hover:text-white hover:border-[#334155]">
                   Ask MarketMind
                 </Button>
@@ -277,7 +286,7 @@ export default function LandingPage() {
 
           {/* Right Column: Clean Institutional Sign-In Card (5 cols) */}
           <div className="lg:col-span-5">
-            <div className="bg-[#111827] rounded-xl p-6 sm:p-7 border border-[#1e293b] shadow-xl space-y-4">
+            <div id="auth-card" className="bg-[#111827] rounded-xl p-6 sm:p-7 border border-[#1e293b] shadow-xl space-y-4">
               
               {/* Card Header */}
               <div className="flex items-center justify-between border-b border-[#1e293b] pb-4">
@@ -347,6 +356,7 @@ export default function LandingPage() {
                   <div className="relative">
                     <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b]" />
                     <Input
+                      id="auth-email-input"
                       type="email"
                       required
                       placeholder="your.email@example.com"
@@ -525,7 +535,11 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              <Link href={`/stock/${currentPreview.symbol}`} className="block pt-2">
+              <Link
+                href={`/stock/${currentPreview.symbol}`}
+                onClick={(e) => handleProtectedNav(e, `/stock/${currentPreview.symbol}`)}
+                className="block pt-2"
+              >
                 <Button className="w-full text-xs font-semibold gap-2 bg-[#162032] hover:bg-[#1e293b] border border-[#293548] text-white">
                   <span>Open Full Analysis & Candlestick Chart</span>
                   <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
@@ -761,6 +775,7 @@ export default function LandingPage() {
               <Link
                 key={mod.title}
                 href={mod.route}
+                onClick={(e) => handleProtectedNav(e, mod.route)}
                 className="bg-[#111827] hover:bg-[#162032] rounded-xl p-5 border border-[#1e293b] hover:border-[#334155] block transition-all group"
               >
                 <div className="flex items-center justify-between mb-2">
@@ -803,9 +818,9 @@ export default function LandingPage() {
             MarketMind — AI-Powered Indian Stock Market Intelligence Agent
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="hover:text-emerald-400 transition-colors">Workspace</Link>
-            <Link href="/markets" className="hover:text-emerald-400 transition-colors">Markets</Link>
-            <Link href="/stocks" className="hover:text-emerald-400 transition-colors">Screener</Link>
+            <Link href="/dashboard" onClick={(e) => handleProtectedNav(e, '/dashboard')} className="hover:text-emerald-400 transition-colors">Workspace</Link>
+            <Link href="/markets" onClick={(e) => handleProtectedNav(e, '/markets')} className="hover:text-emerald-400 transition-colors">Markets</Link>
+            <Link href="/stocks" onClick={(e) => handleProtectedNav(e, '/stocks')} className="hover:text-emerald-400 transition-colors">Screener</Link>
             <Link href="/login" className="hover:text-emerald-400 transition-colors">Sign In</Link>
           </div>
         </div>

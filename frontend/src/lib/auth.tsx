@@ -51,14 +51,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (typeof window !== 'undefined') {
         const stored = localStorage.getItem('marketmind_user');
         const token = localStorage.getItem('marketmind_token');
-        if (stored) {
+        if (stored && token) {
           const parsed = JSON.parse(stored);
           if (parsed && parsed.sessionActive && parsed.status === 'approved') {
-            queueMicrotask(() => {
-              setUser({ ...parsed, token: token || parsed.token });
-              setIsLoading(false);
-            });
-            return;
+            // Validate session is not stale (24 hour expiry)
+            const authenticatedAt = new Date(parsed.authenticatedAt || 0).getTime();
+            const now = Date.now();
+            const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+            if (now - authenticatedAt < SESSION_TTL_MS) {
+              queueMicrotask(() => {
+                setUser({ ...parsed, token: token || parsed.token });
+                setIsLoading(false);
+              });
+              return;
+            } else {
+              // Session expired, clear it
+              localStorage.removeItem('marketmind_user');
+              localStorage.removeItem('marketmind_token');
+            }
           }
         }
       }
@@ -166,7 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('marketmind_token');
     }
     setUser(null);
-    router.push('/login');
+    router.push('/');
   }, [router]);
 
   return (

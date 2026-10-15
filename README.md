@@ -35,7 +35,7 @@ MarketMind continuously tracks major benchmark indices (**NIFTY 50, SENSEX, BANK
 - **Statistical Anomaly Desk**: Detects volume surges and price breakouts using rolling standard deviations and volume Z-scores.
 - **Lead Synthesis Desk**: Consolidates multi-desk telemetry into directional consensus signals (Bullish / Neutral / Bearish) with evidence confidence ratings.
 
-### 🛡️ Trader Safety Intelligence — 5-Agent Trade Safety Committee *(NEW)*
+### 🛡️ Trader Safety Intelligence — 5-Agent Trade Safety Committee
 - **Purpose**: Improve trade decision quality and help users avoid avoidable mistakes through transparent AI-agent review, risk awareness, and behavioural guardrails.
 - **5-Agent Sequential Committee**:
   1. **Market Risk Analyst** — Assesses market environment (VIX, breadth, regime) and whether it supports the proposed trade.
@@ -47,6 +47,7 @@ MarketMind continuously tracks major benchmark indices (**NIFTY 50, SENSEX, BANK
 - **Deterministic Position Sizing Calculator** — Maximum safe quantity formula with SEBI statutory charges (STT, exchange, SEBI, stamp duty, GST) and execution slippage.
 - **Trade Journal & Analytics** — Record trades, calculate win rate, profit factor, expectancy, max drawdown, and longest losing streak. All math is pure Python.
 - **Risk Management Dashboard** — Configure risk profiles, view live portfolio exposure, and calculate position sizes.
+- **Portfolio Management Dashboard (`/portfolio`)** — Institutional paper trading portfolio tracking: open positions, historical closed trades, win rate percentage, profit factor, expectancy, and dynamic sector concentration breakdown.
 
 > **Safety Constraints**: Zero LLM math — all financial calculations are deterministic Python functions. Gemini only summarizes evidence and explains uncertainty. No broker API integration, no order placement, no personalized financial advice, no guaranteed returns.
 
@@ -111,6 +112,7 @@ MarketMind/
 ├── frontend/                             # Next.js 16 (Turbopack) Web Terminal
 │   ├── src/
 │   │   ├── app/                          # Next.js App Router Pages
+│   │   │   ├── portfolio/                # Portfolio Management & P&L Dashboard
 │   │   │   ├── safety/                   # Trade Safety Review Page
 │   │   │   ├── risk/                     # Risk Management Dashboard
 │   │   │   └── journal/                  # Trade Journal & Analytics

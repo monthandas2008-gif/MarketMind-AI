@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { 
   Activity, Layers, FileText, Terminal, Key, 
   Search, ShieldCheck, TrendingUp, LogIn,
-  Menu, LogOut, CheckCircle2, PanelLeftClose, PanelLeftOpen, ShieldAlert
+  Menu, LogOut, CheckCircle2, PanelLeftClose, PanelLeftOpen, ShieldAlert, Briefcase
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import AuthModal from '@/components/common/AuthModal';
@@ -110,6 +110,7 @@ export default function AppHeader({
     { href: '/markets', label: 'Markets', icon: TrendingUp },
     { href: '/stocks', label: 'Screener', icon: Layers },
     { href: '/intelligence', label: 'Intelligence', icon: ShieldCheck },
+    { href: '/portfolio', label: 'Portfolio', icon: Briefcase },
     { href: '/reports', label: 'Daily Briefings', icon: FileText },
     { href: '/ask', label: 'Ask AI', icon: Terminal },
   ];
