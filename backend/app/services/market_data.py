@@ -183,12 +183,23 @@ class MarketDataService:
         """
         Fetches historical OHLCV data with configurable period & interval (e.g. 1m, 5m, 1h, 1d),
         saves daily records to database, and returns chronological MarketDataPoint list.
+        Auto-clamps period for granular intraday intervals to avoid provider constraints.
         """
         sym_clean = symbol.upper().strip()
-        cache_key = f"{sym_clean}_{period}_{interval}"
+
+        # Sanitize & clamp period for intraday intervals
+        effective_period = period
+        if interval in ["1m", "2m"]:
+            effective_period = "5d" if period not in ["1d", "5d"] else period
+        elif interval in ["5m", "15m", "30m"]:
+            effective_period = "1mo" if period not in ["1d", "5d", "1mo"] else period
+        elif interval in ["60m", "1h", "4h"]:
+            effective_period = "3mo" if period not in ["1d", "5d", "1mo", "3mo"] else period
+
+        cache_key = f"{sym_clean}_{effective_period}_{interval}"
         now = time.time()
-        # For intraday intervals, use a shorter TTL
-        history_ttl = 30.0 if interval in ["1m", "2m", "5m", "15m", "30m", "60m", "1h"] else self._history_ttl
+        # For intraday intervals, use high-speed 15s-30s cache TTL
+        history_ttl = 15.0 if interval in ["1m", "5m"] else (30.0 if interval in ["15m", "1h", "4h"] else self._history_ttl)
         if use_cache and cache_key in self._history_cache:
             ts, cached_records = self._history_cache[cache_key]
             if now - ts < history_ttl:
@@ -198,11 +209,11 @@ class MarketDataService:
         
         def _get_history():
             t = yf.Ticker(yf_ticker)
-            return t.history(period=period, interval=interval)
+            return t.history(period=effective_period, interval=interval)
 
         hist = await self._execute_with_retry(_get_history)
         if hist.empty:
-            logger.warning(f"No historical data found for {symbol} ({yf_ticker}) period={period} interval={interval}")
+            logger.warning(f"No historical data found for {symbol} ({yf_ticker}) period={effective_period} interval={interval}")
             return []
 
         # Drop any untraded placeholder rows
@@ -228,11 +239,11 @@ class MarketDataService:
             raw_chg = ((close_p - prev_c) / prev_c) * 100.0 if prev_c else 0.0
             chg_pct = safe_float(raw_chg, 0.0) or 0.0
             
-            # For intraday format with ISO timestamp, for daily format with YYYY-MM-DD
+            # Format timestamp: Intraday includes ISO with exact time, Daily is YYYY-MM-DD
             if interval in ["1d", "5d", "1wk", "1mo", "3mo"]:
                 t_date = row.name.strftime("%Y-%m-%d")
             else:
-                t_date = row.name.strftime("%Y-%m-%dT%H:%M:%S")
+                t_date = row.name.strftime("%Y-%m-%dT%H:%M:%S%z")
 
             dp = MarketDataPoint(
                 symbol=symbol.upper(),

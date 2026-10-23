@@ -202,18 +202,22 @@ export default function StockAnalysisPage({ params }: { params: Promise<{ symbol
             symbol={symbol} 
             height={400} 
             selectedInterval={interval}
-            selectedPeriod={period}
             isLoading={chartLoading}
             onIntervalChange={(newInterval) => {
               setInterval(newInterval);
+              let autoPeriod = '3mo';
               if (newInterval === '1m' || newInterval === '5m') {
-                if (period !== '1d' && period !== '5d') {
-                  setPeriod('5d');
-                }
+                autoPeriod = '5d';
+              } else if (newInterval === '15m' || newInterval === '1h') {
+                autoPeriod = '1mo';
+              } else if (newInterval === '4h') {
+                autoPeriod = '3mo';
+              } else if (newInterval === '1d') {
+                autoPeriod = '3mo';
+              } else if (newInterval === '1wk') {
+                autoPeriod = '1y';
               }
-            }}
-            onPeriodChange={(newPeriod) => {
-              setPeriod(newPeriod);
+              setPeriod(autoPeriod);
             }}
           />
         </section>

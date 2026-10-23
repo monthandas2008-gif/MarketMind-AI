@@ -310,23 +310,23 @@ export default function Dashboard() {
               symbol={activeChartSymbol} 
               height={320} 
               selectedInterval={chartInterval}
-              selectedPeriod={chartPeriod}
               isLoading={chartLoading}
               onIntervalChange={(newInterval) => {
                 setChartInterval(newInterval);
-                // Adjust period automatically if needed for intraday data bounds
-                let adjustedPeriod = chartPeriod;
+                let autoPeriod = '3mo';
                 if (newInterval === '1m' || newInterval === '5m') {
-                  if (chartPeriod !== '1d' && chartPeriod !== '5d') {
-                    adjustedPeriod = '5d';
-                    setChartPeriod('5d');
-                  }
+                  autoPeriod = '5d';
+                } else if (newInterval === '15m' || newInterval === '1h') {
+                  autoPeriod = '1mo';
+                } else if (newInterval === '4h') {
+                  autoPeriod = '3mo';
+                } else if (newInterval === '1d') {
+                  autoPeriod = '3mo';
+                } else if (newInterval === '1wk') {
+                  autoPeriod = '1y';
                 }
-                loadChartHistory(activeChartSymbol, adjustedPeriod, newInterval);
-              }}
-              onPeriodChange={(newPeriod) => {
-                setChartPeriod(newPeriod);
-                loadChartHistory(activeChartSymbol, newPeriod, chartInterval);
+                setChartPeriod(autoPeriod);
+                loadChartHistory(activeChartSymbol, autoPeriod, newInterval);
               }}
             />
           </div>

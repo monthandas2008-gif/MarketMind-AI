@@ -17,10 +17,9 @@ import {
   Minimize2, 
   RotateCcw, 
   Clock, 
-  Calendar,
-  Layers,
+  BarChart2,
   TrendingUp,
-  BarChart2
+  RefreshCw
 } from 'lucide-react';
 
 export interface CandlestickChartProps {
@@ -28,31 +27,19 @@ export interface CandlestickChartProps {
   symbol: string;
   height?: number;
   selectedInterval?: string;
-  selectedPeriod?: string;
   onIntervalChange?: (interval: string) => void;
-  onPeriodChange?: (period: string) => void;
   isLoading?: boolean;
 }
 
-// TradingView standard intervals
-export const CHART_INTERVALS = [
-  { label: '1m', value: '1m', desc: '1 Minute' },
-  { label: '5m', value: '5m', desc: '5 Minutes' },
-  { label: '15m', value: '15m', desc: '15 Minutes' },
-  { label: '1h', value: '1h', desc: '1 Hour' },
-  { label: '4h', value: '4h', desc: '4 Hours (Swing)' },
-  { label: '1D', value: '1d', desc: '1 Day (Standard)' },
-  { label: '1W', value: '1wk', desc: '1 Week (Position)' },
-];
-
-// TradingView standard timeframe ranges
-export const CHART_TIMEFRAMES = [
-  { label: '1D', period: '1d', defaultInterval: '5m' },
-  { label: '5D', period: '5d', defaultInterval: '15m' },
-  { label: '1M', period: '1mo', defaultInterval: '1h' },
-  { label: '3M', period: '3mo', defaultInterval: '1d' },
-  { label: '6M', period: '6mo', defaultInterval: '1d' },
-  { label: '1Y', period: '1y', defaultInterval: '1d' },
+// Unified TradingView Timeframe & Interval Options in ONE sleek panel
+export const UNIFIED_TIMEFRAMES = [
+  { label: '1m', value: '1m', title: '1 Minute (Scalp)' },
+  { label: '5m', value: '5m', title: '5 Minutes (Intraday)' },
+  { label: '15m', value: '15m', title: '15 Minutes (Short Trend)' },
+  { label: '1h', value: '1h', title: '1 Hour (Hourly Swing)' },
+  { label: '4h', value: '4h', title: '4 Hours (Daily Trend)' },
+  { label: '1D', value: '1d', title: '1 Day (Standard Positional)' },
+  { label: '1W', value: '1wk', title: '1 Week (Macro Long-term)' },
 ];
 
 export default function CandlestickChart({
@@ -60,18 +47,15 @@ export default function CandlestickChart({
   symbol,
   height = 380,
   selectedInterval = '1d',
-  selectedPeriod = '3mo',
   onIntervalChange,
-  onPeriodChange,
   isLoading = false
 }: CandlestickChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
 
-  // Local state for interactive HUD & controls
+  // Single unified active interval state
   const [internalInterval, setInternalInterval] = useState(selectedInterval);
-  const [internalPeriod, setInternalPeriod] = useState(selectedPeriod);
   const [isExpanded, setIsExpanded] = useState(false);
   const [hoveredCandle, setHoveredCandle] = useState<{
     open: number;
@@ -83,44 +67,73 @@ export default function CandlestickChart({
     time: string;
   } | null>(null);
 
-  // Sync external props with internal state
   useEffect(() => {
     if (selectedInterval) setInternalInterval(selectedInterval);
   }, [selectedInterval]);
 
-  useEffect(() => {
-    if (selectedPeriod) setInternalPeriod(selectedPeriod);
-  }, [selectedPeriod]);
-
-  // Handler for interval click
   const handleIntervalSelect = (intervalVal: string) => {
     setInternalInterval(intervalVal);
     onIntervalChange?.(intervalVal);
   };
 
-  // Handler for timeframe range click
-  const handlePeriodSelect = (periodVal: string, recommendedInterval?: string) => {
-    setInternalPeriod(periodVal);
-    onPeriodChange?.(periodVal);
-    if (recommendedInterval && !onIntervalChange) {
-      setInternalInterval(recommendedInterval);
-    }
-  };
-
-  // Reset zoom & pan
   const handleResetZoom = useCallback(() => {
     if (chartRef.current) {
       chartRef.current.timeScale().fitContent();
     }
   }, []);
 
-  // 1. Initialize Chart ONCE on mount or when height / expanded mode changes
+  // Format timestamp helper with IST AM/PM
+  const formatISTDateTime = (rawTime: string | number | { year: number; month: number; day: number }) => {
+    try {
+      if (typeof rawTime === 'number') {
+        const d = new Date(rawTime * 1000);
+        return d.toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+          timeZone: 'Asia/Kolkata'
+        }) + ' ' + d.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+          timeZone: 'Asia/Kolkata'
+        });
+      }
+      if (typeof rawTime === 'string') {
+        if (rawTime.includes('T') || rawTime.includes(':')) {
+          const d = new Date(rawTime);
+          if (!isNaN(d.getTime())) {
+            return d.toLocaleDateString('en-IN', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+              timeZone: 'Asia/Kolkata'
+            }) + ' ' + d.toLocaleTimeString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true,
+              timeZone: 'Asia/Kolkata'
+            });
+          }
+        }
+        return rawTime;
+      }
+      if (typeof rawTime === 'object' && rawTime !== null) {
+        return `${String(rawTime.day).padStart(2, '0')}/${String(rawTime.month).padStart(2, '0')}/${rawTime.year}`;
+      }
+    } catch {
+      // Fallback
+    }
+    return String(rawTime);
+  };
+
+  // 1. Initialize Chart ONCE on mount or when container height changes
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
     chartContainerRef.current.innerHTML = '';
 
-    const chartHeight = isExpanded ? 540 : height;
+    const chartHeight = isExpanded ? 520 : height;
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
@@ -142,11 +155,27 @@ export default function CandlestickChart({
         rightOffset: 5,
         barSpacing: 8,
         minBarSpacing: 3,
+        // Format time on X-axis with AM / PM for intraday
+        tickMarkFormatter: (time: Time) => {
+          if (typeof time === 'number') {
+            const date = new Date(time * 1000);
+            return date.toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+              timeZone: 'Asia/Kolkata'
+            });
+          }
+          return String(time);
+        },
+      },
+      localization: {
+        timeFormatter: (time: Time) => formatISTDateTime(time),
       },
       rightPriceScale: {
         borderColor: '#1e293b',
         scaleMargins: {
-          top: 0.1,
+          top: 0.08,
           bottom: 0.12,
         },
       },
@@ -186,7 +215,7 @@ export default function CandlestickChart({
       wickDownColor: '#f43f5e',
     });
 
-    // Crosshair move listener for TradingView-style HUD OHLC readout
+    // Crosshair move listener for real-time OHLC inspection with AM / PM formatting
     chart.subscribeCrosshairMove((param) => {
       if (!param || !param.time || !param.seriesData) {
         setHoveredCandle(null);
@@ -205,17 +234,7 @@ export default function CandlestickChart({
       const close = bar.close;
       const change = close - open;
       const changePercent = open ? (change / open) * 100 : 0;
-
-      let timeStr = '';
-      if (typeof param.time === 'string') {
-        timeStr = param.time;
-      } else if (typeof param.time === 'number') {
-        const d = new Date(param.time * 1000);
-        timeStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      } else if (typeof param.time === 'object' && param.time !== null) {
-        const tObj = param.time as { year: number; month: number; day: number };
-        timeStr = `${tObj.year}-${String(tObj.month).padStart(2, '0')}-${String(tObj.day).padStart(2, '0')}`;
-      }
+      const formattedTime = formatISTDateTime(param.time as any);
 
       setHoveredCandle({
         open,
@@ -224,7 +243,7 @@ export default function CandlestickChart({
         close,
         change,
         changePercent,
-        time: timeStr
+        time: formattedTime
       });
     });
 
@@ -263,7 +282,6 @@ export default function CandlestickChart({
       const formatted: CandlestickData<Time>[] = data
         .filter((d) => d.open !== null && d.close !== null && d.high !== null && d.low !== null)
         .map((d) => {
-          // If datetime timestamp string exists, parse to unix timestamp for intraday support
           const rawDate = d.trade_date;
           let timeVal: Time;
           if (rawDate.includes('T') || rawDate.includes(':') || rawDate.includes(' ')) {
@@ -287,7 +305,7 @@ export default function CandlestickChart({
           return aT - bT;
         });
 
-      // Filter out duplicate timestamps to satisfy lightweight-charts assertion
+      // Filter duplicate timestamps to satisfy lightweight-charts assertion
       const uniqueData: CandlestickData<Time>[] = [];
       const seenTimes = new Set<string | number>();
 
@@ -315,7 +333,7 @@ export default function CandlestickChart({
     close: latestData.close ?? 0,
     change: (latestData.close ?? 0) - (latestData.open ?? 0),
     changePercent: latestData.change_percent ?? 0,
-    time: latestData.trade_date
+    time: formatISTDateTime(latestData.trade_date)
   } : null);
 
   const isGreen = displayCandle ? displayCandle.close >= displayCandle.open : true;
@@ -323,35 +341,33 @@ export default function CandlestickChart({
   return (
     <div className="relative w-full select-none bg-[#0b0f19] rounded-xl border border-[#1e293b] p-3 space-y-2.5">
       
-      {/* Top TradingView Control Toolbar */}
+      {/* Top TradingView Control Toolbar: SINGLE UNIFIED ROW */}
       <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#1e293b]">
         
-        {/* Left: Symbol & Resolution / Intervals */}
+        {/* Left: Symbol & Exchange Tag + Candlestick Icon */}
         <div className="flex items-center gap-2">
-          {/* Symbol & Exchange Tag */}
-          <div className="flex items-center gap-1.5 pr-2 border-r border-[#1e293b]">
+          <div className="flex items-center gap-1.5 pr-2.5 border-r border-[#1e293b]">
             <span className="font-mono font-bold text-white text-sm tracking-wide">{symbol}</span>
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#162032] text-emerald-400 font-semibold border border-emerald-500/20">
               NSE
             </span>
           </div>
 
-          {/* Candlestick Style Icon */}
-          <div className="hidden sm:flex items-center text-[#94a3b8] px-1" title="Candlestick Chart">
+          <div className="flex items-center text-[#94a3b8]" title="Candlestick Chart">
             <BarChart2 className="w-4 h-4 text-emerald-400" />
           </div>
 
-          {/* TradingView Resolution Intervals (1m, 5m, 15m, 1h, 4h, 1D, 1W) */}
-          <div className="flex items-center gap-0.5 bg-[#0f172a] p-0.5 rounded-lg border border-[#1e293b]">
-            {CHART_INTERVALS.map((item) => {
+          {/* SINGLE UNIFIED PANEL FOR TIMEFRAMES / INTERVALS */}
+          <div className="flex items-center gap-1 bg-[#0f172a] p-1 rounded-lg border border-[#1e293b]">
+            {UNIFIED_TIMEFRAMES.map((item) => {
               const active = internalInterval.toLowerCase() === item.value.toLowerCase();
               return (
                 <button
                   key={item.value}
                   type="button"
-                  title={item.desc}
+                  title={item.title}
                   onClick={() => handleIntervalSelect(item.value)}
-                  className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-all ${
+                  className={`px-2.5 py-0.5 rounded text-xs font-semibold transition-all ${
                     active
                       ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-xs'
                       : 'text-[#94a3b8] hover:text-white hover:bg-[#1e293b]'
@@ -364,37 +380,17 @@ export default function CandlestickChart({
           </div>
         </div>
 
-        {/* Right: Timeframe Range Selector & Tools */}
-        <div className="flex items-center gap-2">
-          {/* Timeframe Presets: 1D, 5D, 1M, 3M, 6M, 1Y */}
-          <div className="flex items-center gap-0.5 bg-[#0f172a] p-0.5 rounded-lg border border-[#1e293b]">
-            {CHART_TIMEFRAMES.map((tf) => {
-              const active = internalPeriod.toLowerCase() === tf.period.toLowerCase();
-              return (
-                <button
-                  key={tf.period}
-                  type="button"
-                  onClick={() => handlePeriodSelect(tf.period, tf.defaultInterval)}
-                  className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase transition-all ${
-                    active
-                      ? 'bg-[#1e293b] text-white border border-[#334155]'
-                      : 'text-[#64748b] hover:text-[#cbd5e1]'
-                  }`}
-                >
-                  {tf.label}
-                </button>
-              );
-            })}
-          </div>
-
+        {/* Right: Chart Tools (Reset Zoom, Expand Fullscreen) */}
+        <div className="flex items-center gap-1.5">
           {/* Reset Zoom / Fit Content */}
           <button
             type="button"
             onClick={handleResetZoom}
             title="Reset Zoom & Pan (Fit Chart)"
-            className="p-1 rounded bg-[#0f172a] hover:bg-[#1e293b] border border-[#1e293b] text-[#94a3b8] hover:text-white transition-all text-xs"
+            className="p-1.5 rounded-lg bg-[#0f172a] hover:bg-[#1e293b] border border-[#1e293b] text-[#94a3b8] hover:text-white transition-all text-xs flex items-center gap-1"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="text-[11px] hidden sm:inline">Fit Chart</span>
           </button>
 
           {/* Toggle Full Height Mode */}
@@ -402,18 +398,24 @@ export default function CandlestickChart({
             type="button"
             onClick={() => setIsExpanded(!isExpanded)}
             title={isExpanded ? 'Collapse Chart' : 'Expand Fullscreen Height'}
-            className="p-1 rounded bg-[#0f172a] hover:bg-[#1e293b] border border-[#1e293b] text-[#94a3b8] hover:text-white transition-all text-xs"
+            className="p-1.5 rounded-lg bg-[#0f172a] hover:bg-[#1e293b] border border-[#1e293b] text-[#94a3b8] hover:text-white transition-all text-xs"
           >
             {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
         </div>
       </div>
 
-      {/* TradingView Real-Time OHLC HUD Inspection Strip */}
-      <div className="flex flex-wrap items-center justify-between text-xs px-2 py-1 bg-[#0f172a]/70 rounded-md border border-[#1e293b]/60">
-        <div className="flex flex-wrap items-center gap-3 font-mono text-[11px]">
+      {/* TradingView Real-Time OHLC HUD Inspection Strip with AM/PM Time */}
+      <div className="flex flex-wrap items-center justify-between text-xs px-2.5 py-1.5 bg-[#0f172a]/70 rounded-md border border-[#1e293b]/60">
+        <div className="flex flex-wrap items-center gap-3.5 font-mono text-[11px]">
           {displayCandle ? (
             <>
+              {/* Exact Timestamp with AM / PM */}
+              <div className="flex items-center gap-1 pr-2 border-r border-[#1e293b] text-[#cbd5e1]">
+                <Clock className="w-3 h-3 text-cyan-400" />
+                <span className="font-medium">{displayCandle.time}</span>
+              </div>
+
               <div className="flex items-center gap-1">
                 <span className="text-[#64748b]">O:</span>
                 <span className="font-semibold text-white">₹{displayCandle.open.toFixed(2)}</span>
@@ -440,7 +442,7 @@ export default function CandlestickChart({
               </div>
             </>
           ) : (
-            <span className="text-[#64748b]">Hover over chart candles for real-time OHLC readout</span>
+            <span className="text-[#64748b]">Hover over candlesticks for live OHLC + AM/PM timestamp</span>
           )}
         </div>
 
@@ -449,7 +451,7 @@ export default function CandlestickChart({
           {isLoading && (
             <span className="text-emerald-400 font-mono animate-pulse flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-              Fetching {internalInterval}...
+              Syncing {internalInterval}...
             </span>
           )}
           <span className="hidden sm:inline">TradingView Engine</span>
@@ -474,12 +476,12 @@ export default function CandlestickChart({
       <div className="flex items-center justify-between text-[11px] text-[#64748b] pt-1 px-1">
         <span className="flex items-center gap-1">
           <Clock className="w-3 h-3 text-[#94a3b8]" />
-          <span>Interval: <strong className="text-white font-mono">{internalInterval.toUpperCase()}</strong></span>
+          <span>Active Interval: <strong className="text-white font-mono">{internalInterval.toUpperCase()}</strong></span>
           <span className="mx-1">•</span>
-          <span>Range: <strong className="text-white font-mono">{internalPeriod.toUpperCase()}</strong></span>
+          <span>Live Synchronized with NSE Market</span>
         </span>
         <span className="text-[10px] text-[#94a3b8]">
-          Scroll to Zoom • Drag to Pan • Crosshair Tooltip Active
+          Scroll to Zoom • Drag to Pan • Crosshair Tooltip with AM/PM IST
         </span>
       </div>
     </div>
