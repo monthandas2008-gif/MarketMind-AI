@@ -198,9 +198,16 @@ class MarketMindAPI {
     return this.fetch<StockDataResult>(`/api/market/stock/${symbol}`, undefined, 30000, forceRefresh);
   }
 
-  async getStockHistory(symbol: string, period: string = '3mo', forceRefresh: boolean = false): Promise<MarketDataPoint[]> {
-    const qs = forceRefresh ? `period=${period}&force_refresh=true` : `period=${period}`;
-    return this.fetch<MarketDataPoint[]>(`/api/market/history/${symbol}?${qs}`, undefined, 60000, forceRefresh);
+  async getStockHistory(
+    symbol: string, 
+    period: string = '3mo', 
+    interval: string = '1d', 
+    forceRefresh: boolean = false
+  ): Promise<MarketDataPoint[]> {
+    const params = new URLSearchParams({ period, interval });
+    if (forceRefresh) params.set('force_refresh', 'true');
+    const ttl = interval === '1d' ? 60000 : 20000;
+    return this.fetch<MarketDataPoint[]>(`/api/market/history/${symbol}?${params.toString()}`, undefined, ttl, forceRefresh);
   }
 
   async getMovers(threshold: number = 2.0, forceRefresh: boolean = false): Promise<StockMover[]> {

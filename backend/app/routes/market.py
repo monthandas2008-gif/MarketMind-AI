@@ -92,20 +92,26 @@ async def get_stock_data(symbol: str):
 @router.get("/history/{symbol}", response_model=List[MarketDataPoint])
 async def get_stock_history(
     symbol: str, 
-    period: str = Query("3mo", description="1mo, 3mo, 6mo, 1y"),
+    period: str = Query("3mo", description="1d, 5d, 1mo, 3mo, 6mo, 1y"),
+    interval: str = Query("1d", description="1m, 2m, 5m, 15m, 30m, 60m, 1h, 1d, 1wk"),
     force_refresh: bool = Query(False, description="Bypass cache and force fresh OHLCV fetch")
 ):
-    """Returns chronological historical OHLCV data for charting."""
+    """Returns chronological historical OHLCV data for charting with configurable timeframe and interval."""
     sym_clean = symbol.upper().strip()
     try:
-        if not force_refresh:
-            # First check DB
+        # If standard 1d interval, check database cache if not forced refresh
+        if interval == "1d" and not force_refresh:
             db_history = await get_historical_market_data(sym_clean, limit=90)
             if len(db_history) >= 20:
                 return db_history
 
-        # If sparse in DB or forced refresh, fetch live
-        return await market_data_service.fetch_historical(sym_clean, period=period, use_cache=not force_refresh)
+        # For intraday intervals or when not found in DB, fetch live with requested interval & period
+        return await market_data_service.fetch_historical(
+            sym_clean, 
+            period=period, 
+            interval=interval, 
+            use_cache=not force_refresh
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch history for {sym_clean}: {e}")
 

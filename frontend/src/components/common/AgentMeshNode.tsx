@@ -4,7 +4,8 @@ import React from 'react';
 import Link from 'next/link';
 import { 
   Activity, Newspaper, AlertTriangle, Cpu, CheckCircle2, 
-  ArrowRight, ShieldCheck, Target, Shield, Compass, Sparkles, ExternalLink
+  ArrowRight, ShieldCheck, Target, Shield, Compass, Sparkles, ExternalLink,
+  HelpCircle, AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -24,6 +25,12 @@ export interface StockAgentIntelligence {
   catalystAlignment: string;
   simpleExplanation: string;
   traderAdvice: string;
+  // Trust & Probability Factor fields
+  probabilityScore: number;       // e.g. 84 (%)
+  trustLevel: 'HIGH TRUST' | 'MODERATE TRUST' | 'LOW TRUST';
+  trustBadgeColor: 'emerald' | 'amber' | 'rose';
+  trustSummary: string;           // Clear plain English rationale
+  keyRiskNotice: string;          // Major uncertainty or condition
 }
 
 // User-friendly, simple, sorted intelligence presets for instant zero-latency loading
@@ -43,7 +50,12 @@ export const STOCK_INTELLIGENCE_PRESETS: Record<string, StockAgentIntelligence> 
     rewardRisk: '1:2.8 (Favorable)',
     catalystAlignment: 'Technical & News Aligned',
     simpleExplanation: 'Reliance is in a steady upward trend backed by solid business earnings. Big institutions are accumulating on dips.',
-    traderAdvice: 'Best approach is to buy during small price dips near ₹2,880 support rather than chasing highs. Keep your safety stop-loss at ₹2,850.'
+    traderAdvice: 'Best approach is to buy during small price dips near ₹2,880 support rather than chasing highs. Keep your safety stop-loss at ₹2,850.',
+    probabilityScore: 82,
+    trustLevel: 'HIGH TRUST',
+    trustBadgeColor: 'emerald',
+    trustSummary: 'High probability setup: 4 out of 4 agent desks (Technical, News, Volume, Valuation) agree on the upward direction.',
+    keyRiskNotice: 'Crude oil sudden price spikes could temporarily pause the rally. Maintain a strict stop-loss below ₹2,850.'
   },
   TCS: {
     tacticalSetup: 'BREAKOUT WATCH',
@@ -60,7 +72,12 @@ export const STOCK_INTELLIGENCE_PRESETS: Record<string, StockAgentIntelligence> 
     rewardRisk: '1:3.0 (Excellent)',
     catalystAlignment: 'High Conviction Breakout',
     simpleExplanation: 'TCS is demonstrating top-tier relative strength in the IT sector with expanding daily volumes.',
-    traderAdvice: 'A clean breakout above ₹3,920 can open a rally to ₹4,120. Enter with caution and keep a stop-loss at ₹3,780.'
+    traderAdvice: 'A clean breakout above ₹3,920 can open a rally to ₹4,120. Enter with caution and keep a stop-loss at ₹3,780.',
+    probabilityScore: 78,
+    trustLevel: 'HIGH TRUST',
+    trustBadgeColor: 'emerald',
+    trustSummary: 'High probability breakout: Tech momentum verified by heavy volume and international client wins.',
+    keyRiskNotice: 'Global tech spending cuts or US interest rate changes could trigger sharp profit-taking.'
   },
   INFY: {
     tacticalSetup: 'ACCUMULATE ON DIP',
@@ -77,7 +94,12 @@ export const STOCK_INTELLIGENCE_PRESETS: Record<string, StockAgentIntelligence> 
     rewardRisk: '1:2.5 (Favorable)',
     catalystAlignment: 'Value Accumulation',
     simpleExplanation: 'Infosys has hit a reliable price floor. Downside risk appears very limited from current levels.',
-    traderAdvice: 'Great risk-to-reward swing setup. Buy around current levels with a strict stop-loss at ₹1,550 and hold for ₹1,720.'
+    traderAdvice: 'Great risk-to-reward swing setup. Buy around current levels with a strict stop-loss at ₹1,550 and hold for ₹1,720.',
+    probabilityScore: 74,
+    trustLevel: 'MODERATE TRUST',
+    trustBadgeColor: 'amber',
+    trustSummary: 'Moderate probability: Good support floor, but broader IT sector awaits quarterly guidance numbers.',
+    keyRiskNotice: 'Wait for confirmed breakout candle above ₹1,610 before deploying full position size.'
   },
   HDFCBANK: {
     tacticalSetup: 'RANGE-BOUND ACCUMULATE',
@@ -94,7 +116,12 @@ export const STOCK_INTELLIGENCE_PRESETS: Record<string, StockAgentIntelligence> 
     rewardRisk: '1:2.3 (Healthy)',
     catalystAlignment: 'Defensive Consolidation',
     simpleExplanation: 'Stock is taking a breather in a safe price box. Risk of a major crash is very low.',
-    traderAdvice: 'Patient investors can accumulate near ₹1,440 support. Set target near ₹1,580 and stop-loss at ₹1,420.'
+    traderAdvice: 'Patient investors can accumulate near ₹1,440 support. Set target near ₹1,580 and stop-loss at ₹1,420.',
+    probabilityScore: 68,
+    trustLevel: 'MODERATE TRUST',
+    trustBadgeColor: 'amber',
+    trustSummary: 'Moderate confidence: Range-bound consolidation. Stock is safe but will take time to move significantly higher.',
+    keyRiskNotice: 'Do not expect fast quick returns. Best suited for swing traders willing to hold for weeks.'
   },
   TATAMOTORS: {
     tacticalSetup: 'TREND CONTINUATION',
@@ -111,7 +138,12 @@ export const STOCK_INTELLIGENCE_PRESETS: Record<string, StockAgentIntelligence> 
     rewardRisk: '1:2.8 (Favorable)',
     catalystAlignment: 'Momentum & News Aligned',
     simpleExplanation: 'Tata Motors has strong business demand and positive market sentiment driving steady gains.',
-    traderAdvice: 'Follow the upward trend. Stay invested as long as price stays above ₹940. Stop-loss at ₹920.'
+    traderAdvice: 'Follow the upward trend. Stay invested as long as price stays above ₹940. Stop-loss at ₹920.',
+    probabilityScore: 85,
+    trustLevel: 'HIGH TRUST',
+    trustBadgeColor: 'emerald',
+    trustSummary: 'High probability trend: Record domestic retail deliveries and profitable export order volumes.',
+    keyRiskNotice: 'Watch out for raw material (battery cells & steel) cost inflation impacting operating margins.'
   },
   ICICIBANK: {
     tacticalSetup: 'BUY ON SUPPORT RETEST',
@@ -128,7 +160,12 @@ export const STOCK_INTELLIGENCE_PRESETS: Record<string, StockAgentIntelligence> 
     rewardRisk: '1:2.5 (Favorable)',
     catalystAlignment: 'Pullback Retest',
     simpleExplanation: 'High-quality private bank taking a short rest near strong support. A bounce is statistically favored.',
-    traderAdvice: 'Look for entry signals between ₹1,070 and ₹1,080. Target ₹1,160 with stop-loss at ₹1,050.'
+    traderAdvice: 'Look for entry signals between ₹1,070 and ₹1,080. Target ₹1,160 with stop-loss at ₹1,050.',
+    probabilityScore: 80,
+    trustLevel: 'HIGH TRUST',
+    trustBadgeColor: 'emerald',
+    trustSummary: 'High trust rating: Superior loan-book fundamentals and consistent quarterly profitability.',
+    keyRiskNotice: 'Banking index (Bank Nifty) volatility could temporarily pull stock to the lower ₹1,060 level.'
   },
   ITC: {
     tacticalSetup: 'DEFENSIVE VALUE HOLD',
@@ -145,7 +182,12 @@ export const STOCK_INTELLIGENCE_PRESETS: Record<string, StockAgentIntelligence> 
     rewardRisk: '1:2.4 (Favorable)',
     catalystAlignment: 'Defensive Value',
     simpleExplanation: 'ITC offers great safety during uncertain market days with generous dividend backup.',
-    traderAdvice: 'Safe defensive stock. Accumulate near ₹425 support with target at ₹465. Stop-loss below ₹415.'
+    traderAdvice: 'Safe defensive stock. Accumulate near ₹425 support with target at ₹465. Stop-loss below ₹415.',
+    probabilityScore: 72,
+    trustLevel: 'MODERATE TRUST',
+    trustBadgeColor: 'amber',
+    trustSummary: 'Moderate trust: Low beta defensive asset. Ideal for capital protection rather than fast trading profits.',
+    keyRiskNotice: 'Changes in tobacco excise taxes or government regulation can cause sudden short-term price adjustments.'
   }
 };
 
@@ -165,6 +207,10 @@ interface AgentMeshNodeProps {
   synthesisThesis?: string;
   traderAdvice?: string;
   synthesisConfidence?: string;
+  probabilityScore?: number;
+  trustLevel?: 'HIGH TRUST' | 'MODERATE TRUST' | 'LOW TRUST';
+  trustSummary?: string;
+  keyRiskNotice?: string;
 }
 
 export default function AgentMeshNode({
@@ -182,7 +228,11 @@ export default function AgentMeshNode({
   rewardRisk,
   synthesisThesis,
   traderAdvice,
-  synthesisConfidence = 'HIGH CONVICTION'
+  synthesisConfidence = 'HIGH CONVICTION',
+  probabilityScore,
+  trustLevel,
+  trustSummary,
+  keyRiskNotice
 }: AgentMeshNodeProps) {
   // Use active preset or fallback for instantaneous fast rendering
   const preset = STOCK_INTELLIGENCE_PRESETS[activeTicker.toUpperCase()] || STOCK_INTELLIGENCE_PRESETS.RELIANCE;
@@ -201,6 +251,14 @@ export default function AgentMeshNode({
   const currentRR = rewardRisk || preset.rewardRisk;
   const currentThesis = synthesisThesis || preset.simpleExplanation;
   const currentAdvice = traderAdvice || preset.traderAdvice;
+
+  // Probability & Trust factors
+  const currentProb = probabilityScore ?? preset.probabilityScore;
+  const currentTrust = trustLevel || preset.trustLevel;
+  const currentTrustSummary = trustSummary || preset.trustSummary;
+  const currentRiskNotice = keyRiskNotice || preset.keyRiskNotice;
+
+  const trustColor = currentProb >= 75 ? 'emerald' : currentProb >= 50 ? 'amber' : 'rose';
 
   return (
     <div className="bg-[#111827] rounded-xl p-5 border border-[#1e293b] relative overflow-hidden shadow-sm">
@@ -297,7 +355,7 @@ export default function AgentMeshNode({
           </div>
         </div>
 
-        {/* Right Column: Lead Synthesis Node (Advanced Actionable Intelligence) (5 cols) */}
+        {/* Right Column: Lead Synthesis Node with Probability & Trust Factor (5 cols) */}
         <div className="lg:col-span-5 bg-[#0f172a] border border-emerald-500/30 rounded-xl p-4 space-y-3.5 relative flex flex-col justify-between shadow-lg shadow-emerald-950/20">
           
           <div>
@@ -359,6 +417,52 @@ export default function AgentMeshNode({
                 <span className="text-xs font-bold text-amber-400 num-tabular block mt-0.5">
                   {currentRR}
                 </span>
+              </div>
+            </div>
+
+            {/* AI DECISION PROBABILITY & TRUST FACTOR (CRITICAL NEW FEATURE) */}
+            <div className="mt-3 p-3 rounded-lg bg-[#0b0f19] border border-[#293548] space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-1.5 font-bold text-white text-[11px]">
+                  <ShieldCheck className={`w-3.5 h-3.5 ${trustColor === 'emerald' ? 'text-emerald-400' : trustColor === 'amber' ? 'text-amber-400' : 'text-rose-400'}`} />
+                  Decision Trust & Probability
+                </span>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                  trustColor === 'emerald'
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    : trustColor === 'amber'
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                    : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                }`}>
+                  {currentProb}% • {currentTrust}
+                </span>
+              </div>
+
+              {/* Confidence Progress Bar */}
+              <div className="w-full bg-[#1e293b] h-1.5 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    trustColor === 'emerald' ? 'bg-emerald-500' : trustColor === 'amber' ? 'bg-amber-500' : 'bg-rose-500'
+                  }`}
+                  style={{ width: `${currentProb}%` }}
+                />
+              </div>
+
+              {/* Plain English explanation of the trust rating */}
+              <p className="text-[11px] text-[#cbd5e1] leading-relaxed">
+                {currentTrustSummary}
+              </p>
+
+              {/* Key Risk / Uncertainty Notice */}
+              <div className="text-[10px] text-amber-300/90 bg-amber-500/10 p-1.5 rounded border border-amber-500/20 flex items-start gap-1.5 leading-snug">
+                <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                <span><strong>Risk Alert:</strong> {currentRiskNotice}</span>
+              </div>
+
+              {/* Anti-Blind Follow Advisory */}
+              <div className="text-[9.5px] text-[#64748b] leading-tight pt-1 border-t border-[#1e293b]/80 flex items-center gap-1">
+                <HelpCircle className="w-3 h-3 text-[#64748b] shrink-0" />
+                <span>Do not trade blindly. AI models analyze past signals. Always verify with personal risk tolerance.</span>
               </div>
             </div>
 

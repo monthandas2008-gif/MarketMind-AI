@@ -39,6 +39,8 @@ export default function Dashboard() {
   const [latestReport, setLatestReport] = useState<DailyReport | null>(null);
   const [chartHistory, setChartHistory] = useState<MarketDataPoint[]>([]);
   const [activeChartSymbol, setActiveChartSymbol] = useState('RELIANCE');
+  const [chartInterval, setChartInterval] = useState('1d');
+  const [chartPeriod, setChartPeriod] = useState('3mo');
   const [chartLoading, setChartLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,11 +61,11 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  // 1. Independent high-speed chart fetcher (instant switching via client cache)
-  const loadChartHistory = useCallback(async (symbol: string, force = false) => {
+  // 1. Independent high-speed chart fetcher with interval & period support
+  const loadChartHistory = useCallback(async (symbol: string, period = '3mo', interval = '1d', force = false) => {
     try {
       setChartLoading(true);
-      const data = await api.getStockHistory(symbol, '3mo', force);
+      const data = await api.getStockHistory(symbol, period, interval, force);
       if (data && data.length > 0) {
         setChartHistory(data);
       }
@@ -75,8 +77,8 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    loadChartHistory(activeChartSymbol);
-  }, [activeChartSymbol, loadChartHistory]);
+    loadChartHistory(activeChartSymbol, chartPeriod, chartInterval);
+  }, [activeChartSymbol, chartPeriod, chartInterval, loadChartHistory]);
 
   // 2. Macro dashboard loader (overview, news, movers, report, stocks)
   const loadMacroData = useCallback(async (isLiveSync = false) => {
@@ -121,7 +123,7 @@ export default function Dashboard() {
     setRefreshing(true);
     await Promise.allSettled([
       loadMacroData(true),
-      loadChartHistory(activeChartSymbol, true),
+      loadChartHistory(activeChartSymbol, chartPeriod, chartInterval, true),
     ]);
     setRefreshing(false);
   };
@@ -303,7 +305,30 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <CandlestickChart data={chartHistory} symbol={activeChartSymbol} height={310} />
+            <CandlestickChart 
+              data={chartHistory} 
+              symbol={activeChartSymbol} 
+              height={320} 
+              selectedInterval={chartInterval}
+              selectedPeriod={chartPeriod}
+              isLoading={chartLoading}
+              onIntervalChange={(newInterval) => {
+                setChartInterval(newInterval);
+                // Adjust period automatically if needed for intraday data bounds
+                let adjustedPeriod = chartPeriod;
+                if (newInterval === '1m' || newInterval === '5m') {
+                  if (chartPeriod !== '1d' && chartPeriod !== '5d') {
+                    adjustedPeriod = '5d';
+                    setChartPeriod('5d');
+                  }
+                }
+                loadChartHistory(activeChartSymbol, adjustedPeriod, newInterval);
+              }}
+              onPeriodChange={(newPeriod) => {
+                setChartPeriod(newPeriod);
+                loadChartHistory(activeChartSymbol, newPeriod, chartInterval);
+              }}
+            />
           </div>
 
           {/* Market Breadth & Top Movers (5 cols) */}

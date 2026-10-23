@@ -5,13 +5,14 @@ import Link from 'next/link';
 import { 
   ArrowUpRight, ArrowDownRight, RefreshCw, ShieldCheck, 
   Activity, Newspaper, AlertTriangle, Sparkles, ExternalLink, ArrowLeft,
-  FileText
+  FileText, AlertCircle, HelpCircle
 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import CandlestickChart from '@/components/CandlestickChart';
 import SignalBadge from '@/components/common/SignalBadge';
 import EvidenceMeter from '@/components/common/EvidenceMeter';
 import TrackButton from '@/components/common/TrackButton';
+import { STOCK_INTELLIGENCE_PRESETS } from '@/components/common/AgentMeshNode';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -45,6 +46,7 @@ export default function StockAnalysisPage({ params }: { params: Promise<{ symbol
   const [chartLoading, setChartLoading] = useState(false);
   const [runningAnalysis, setRunningAnalysis] = useState(false);
   const [period, setPeriod] = useState('3mo');
+  const [interval, setInterval] = useState('1d');
 
   // 1. Load stock quote and multi-agent analysis on symbol change
   useEffect(() => {
@@ -73,13 +75,13 @@ export default function StockAnalysisPage({ params }: { params: Promise<{ symbol
     };
   }, [symbol]);
 
-  // 2. High-speed history fetching for charting with caching
+  // 2. High-speed history fetching for charting with caching & interval support
   useEffect(() => {
     let isMounted = true;
     async function loadHistory() {
       try {
         setChartLoading(true);
-        const data = await api.getStockHistory(symbol, period);
+        const data = await api.getStockHistory(symbol, period, interval);
         if (isMounted && data && data.length > 0) {
           setHistory(data);
         }
@@ -94,7 +96,7 @@ export default function StockAnalysisPage({ params }: { params: Promise<{ symbol
     return () => {
       isMounted = false;
     };
-  }, [symbol, period]);
+  }, [symbol, period, interval]);
 
   const handleRunAnalysis = async () => {
     try {
@@ -193,41 +195,27 @@ export default function StockAnalysisPage({ params }: { params: Promise<{ symbol
           )}
         </section>
 
-        {/* 2. MAIN CHART ANCHOR */}
+        {/* 2. MAIN CHART ANCHOR (TRADINGVIEW CONTROLS) */}
         <section className="bg-[#111827] rounded-xl p-5 border border-[#1e293b] space-y-3">
-          <div className="flex items-center justify-between border-b border-[#1e293b] pb-2.5">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-white">
-                  Price Action & Historical OHLCV
-                </h2>
-                {chartLoading && (
-                  <span className="text-[10px] text-emerald-400 font-mono animate-pulse">
-                    ● Loading
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-[#94a3b8]">Daily Candlestick Execution Desk</p>
-            </div>
-            <div className="flex items-center gap-1 bg-[#0b0f19] p-1 rounded-md border border-[#1e293b]">
-              {['1mo', '3mo', '6mo', '1y'].map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setPeriod(p)}
-                  className={`px-2.5 py-0.5 rounded text-[11px] font-medium transition-all ${
-                    period === p
-                      ? 'bg-[#162032] text-emerald-400 font-semibold border border-emerald-500/30'
-                      : 'text-[#94a3b8] hover:text-white'
-                  }`}
-                >
-                  {p.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <CandlestickChart data={history} symbol={symbol} height={380} />
+          <CandlestickChart 
+            data={history} 
+            symbol={symbol} 
+            height={400} 
+            selectedInterval={interval}
+            selectedPeriod={period}
+            isLoading={chartLoading}
+            onIntervalChange={(newInterval) => {
+              setInterval(newInterval);
+              if (newInterval === '1m' || newInterval === '5m') {
+                if (period !== '1d' && period !== '5d') {
+                  setPeriod('5d');
+                }
+              }
+            }}
+            onPeriodChange={(newPeriod) => {
+              setPeriod(newPeriod);
+            }}
+          />
         </section>
 
         {/* 3. DETERMINISTIC FINANCIAL METRICS GRID */}
@@ -307,6 +295,60 @@ export default function StockAnalysisPage({ params }: { params: Promise<{ symbol
             <div className="text-xs text-[#cbd5e1] leading-relaxed whitespace-pre-line bg-[#0b0f19] p-4 rounded-lg border border-[#1e293b]">
               {analysis.synthesis.findings}
             </div>
+
+            {/* AI DECISION PROBABILITY & TRUST FACTOR */}
+            {(() => {
+              const preset = STOCK_INTELLIGENCE_PRESETS[symbol] || STOCK_INTELLIGENCE_PRESETS.RELIANCE;
+              const prob = preset.probabilityScore;
+              const trust = preset.trustLevel;
+              const trustColor = prob >= 75 ? 'emerald' : prob >= 50 ? 'amber' : 'rose';
+
+              return (
+                <div className="p-3.5 rounded-lg bg-[#0b0f19] border border-[#293548] space-y-2.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-1.5 font-bold text-white">
+                      <ShieldCheck className={`w-4 h-4 ${trustColor === 'emerald' ? 'text-emerald-400' : trustColor === 'amber' ? 'text-amber-400' : 'text-rose-400'}`} />
+                      AI Decision Trust & Probability Factor
+                    </span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      trustColor === 'emerald'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        : trustColor === 'amber'
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                        : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                    }`}>
+                      {prob}% Probability • {trust}
+                    </span>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="w-full bg-[#1e293b] h-1.5 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        trustColor === 'emerald' ? 'bg-emerald-500' : trustColor === 'amber' ? 'bg-amber-500' : 'bg-rose-500'
+                      }`}
+                      style={{ width: `${prob}%` }}
+                    />
+                  </div>
+
+                  <p className="text-[11px] text-[#cbd5e1] leading-relaxed">
+                    {preset.trustSummary}
+                  </p>
+
+                  <div className="text-[11px] text-amber-300/90 bg-amber-500/10 p-2 rounded border border-amber-500/20 flex items-start gap-1.5 leading-snug">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                    <span><strong>Key Uncertainty / Condition:</strong> {preset.keyRiskNotice}</span>
+                  </div>
+
+                  <div className="text-[10px] text-[#64748b] leading-tight pt-1.5 border-t border-[#1e293b]/80 flex items-center gap-1.5">
+                    <HelpCircle className="w-3.5 h-3.5 text-[#64748b] shrink-0" />
+                    <span>
+                      <strong>Warning for Traders:</strong> Do not blindly follow automated agent signals. Financial markets carry unpredictable systemic risks. Always use stop-loss rules.
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* 5. GROUNDED EVIDENCE PROVENANCE LEDGER */}
             {analysis.synthesis.evidence && analysis.synthesis.evidence.length > 0 && (

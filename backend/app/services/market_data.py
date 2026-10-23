@@ -173,27 +173,36 @@ class MarketDataService:
         self._quote_cache[sym_clean] = (now, data_point)
         return data_point
 
-    async def fetch_historical(self, symbol: str, period: str = "3mo", use_cache: bool = True) -> List[MarketDataPoint]:
+    async def fetch_historical(
+        self, 
+        symbol: str, 
+        period: str = "3mo", 
+        interval: str = "1d",
+        use_cache: bool = True
+    ) -> List[MarketDataPoint]:
         """
-        Fetches historical daily OHLCV, saves to database, and returns chronological MarketDataPoint list.
+        Fetches historical OHLCV data with configurable period & interval (e.g. 1m, 5m, 1h, 1d),
+        saves daily records to database, and returns chronological MarketDataPoint list.
         """
         sym_clean = symbol.upper().strip()
-        cache_key = f"{sym_clean}_{period}"
+        cache_key = f"{sym_clean}_{period}_{interval}"
         now = time.time()
+        # For intraday intervals, use a shorter TTL
+        history_ttl = 30.0 if interval in ["1m", "2m", "5m", "15m", "30m", "60m", "1h"] else self._history_ttl
         if use_cache and cache_key in self._history_cache:
             ts, cached_records = self._history_cache[cache_key]
-            if now - ts < self._history_ttl:
+            if now - ts < history_ttl:
                 return cached_records
 
         yf_ticker = self._resolve_ticker(sym_clean)
         
         def _get_history():
             t = yf.Ticker(yf_ticker)
-            return t.history(period=period, interval="1d")
+            return t.history(period=period, interval=interval)
 
         hist = await self._execute_with_retry(_get_history)
         if hist.empty:
-            logger.warning(f"No historical data found for {symbol} ({yf_ticker})")
+            logger.warning(f"No historical data found for {symbol} ({yf_ticker}) period={period} interval={interval}")
             return []
 
         # Drop any untraded placeholder rows
@@ -218,7 +227,12 @@ class MarketDataService:
 
             raw_chg = ((close_p - prev_c) / prev_c) * 100.0 if prev_c else 0.0
             chg_pct = safe_float(raw_chg, 0.0) or 0.0
-            t_date = row.name.strftime("%Y-%m-%d")
+            
+            # For intraday format with ISO timestamp, for daily format with YYYY-MM-DD
+            if interval in ["1d", "5d", "1wk", "1mo", "3mo"]:
+                t_date = row.name.strftime("%Y-%m-%d")
+            else:
+                t_date = row.name.strftime("%Y-%m-%dT%H:%M:%S")
 
             dp = MarketDataPoint(
                 symbol=symbol.upper(),
@@ -233,23 +247,25 @@ class MarketDataService:
                 source="yfinance"
             )
             records.append(dp)
-            db_records.append({
-                "symbol": dp.symbol,
-                "trade_date": dp.trade_date,
-                "open": dp.open,
-                "high": dp.high,
-                "low": dp.low,
-                "close": dp.close,
-                "volume": dp.volume,
-                "change_percent": dp.change_percent,
-                "prev_close": dp.prev_close,
-                "source": dp.source
-            })
+            if interval == "1d":
+                db_records.append({
+                    "symbol": dp.symbol,
+                    "trade_date": dp.trade_date,
+                    "open": dp.open,
+                    "high": dp.high,
+                    "low": dp.low,
+                    "close": dp.close,
+                    "volume": dp.volume,
+                    "change_percent": dp.change_percent,
+                    "prev_close": dp.prev_close,
+                    "source": dp.source
+                })
 
-        try:
-            await db.save_market_data(db_records)
-        except Exception as e:
-            logger.warning(f"Could not persist historical records for {symbol} to DB: {e}")
+        if db_records:
+            try:
+                await db.save_market_data(db_records)
+            except Exception as e:
+                logger.warning(f"Could not persist historical records for {symbol} to DB: {e}")
 
         self._history_cache[cache_key] = (now, records)
         return records
